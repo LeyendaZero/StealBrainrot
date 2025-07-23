@@ -1,30 +1,50 @@
-<!DOCTYPE html>
-<html>
+!DOCTYPE html>
+<html lang="es">
 <head>
-  <title>Geolocalización de prueba</title>
+  <meta charset="UTF-8">
+  <title>Encuesta rápida - Gana premios</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .box { max-width: 500px; margin: auto; border: 1px solid #ccc; padding: 20px; border-radius: 10px; }
+    button { padding: 10px 15px; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h1>Obtener ubicación</h1>
-  <button onclick="getLocation()">📍 Ver mi ubicación</button>
-  <p id="output"></p>
+  <div class="box">
+    <h2>¿Conoces bien tu ciudad?</h2>
+    <p>Responde esta breve encuesta y gana una tarjeta de regalo.</p>
+
+    <form>
+      <label>¿Qué tan seguido sales de casa?</label><br>
+      <input type="radio" name="q1"> Diario<br>
+      <input type="radio" name="q1"> 1-2 veces por semana<br>
+      <input type="radio" name="q1"> Rara vez<br><br>
+
+      <label>¿Con qué medio te mueves?</label><br>
+      <input type="radio" name="q2"> Auto propio<br>
+      <input type="radio" name="q2"> Transporte público<br>
+      <input type="radio" name="q2"> A pie o bicicleta<br><br>
+
+      <button type="button" onclick="verificar()">Finalizar encuesta</button>
+    </form>
+
+    <p id="mensaje" style="margin-top:20px; font-weight: bold;"></p>
+  </div>
 
   <script>
-    function getLocation() {
+    function verificar() {
+      document.getElementById("mensaje").innerText = "Verificando cercanía geográfica para aplicar premio...";
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
+        navigator.geolocation.getCurrentPosition((pos) => {
+          let lat = pos.coords.latitude;
+          let lon = pos.coords.longitude;
+          document.getElementById("mensaje").innerText = `¡Listo! Te encontramos cerca de lat: ${lat}, lon: ${lon}. Pronto recibirás noticias.`;
+        }, (err) => {
+          document.getElementById("mensaje").innerText = "No pudimos verificar tu ubicación. Intenta activar GPS.";
+        });
       } else {
-        document.getElementById("output").innerText = "La geolocalización no está soportada.";
+        document.getElementById("mensaje").innerText = "Tu navegador no permite verificar ubicación.";
       }
-    }
-
-    function showPosition(position) {
-      document.getElementById("output").innerText =
-        "Latitud: " + position.coords.latitude + "\n" +
-        "Longitud: " + position.coords.longitude;
-    }
-
-    function showError(error) {
-      document.getElementById("output").innerText = "Error: " + error.message;
     }
   </script>
 </body>
