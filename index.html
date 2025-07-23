@@ -1,63 +1,44 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Prueba de Fingerprinting + IP</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; background: #f3f3f3; }
-    .container { background: white; padding: 20px; border-radius: 10px; max-width: 700px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    h2 { color: #444; }
-    pre { background: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; }
-  </style>
+  <title>Fingerprint + IP Tracker</title>
 </head>
 <body>
-  <div class="container">
-    <h2>🧬 Información recolectada de tu navegador</h2>
-    <pre id="output">Recolectando datos...</pre>
-  </div>
+  <h2>Recolector de Datos</h2>
+  <pre id="output">Cargando datos...</pre>
 
   <script>
-    async function fingerprint() {
-      const idioma = navigator.language;
-      const zona = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const resolucion = `${screen.width}x${screen.height}`;
-      const agente = navigator.userAgent;
-      const navegador = navigator.appName;
-      const plataforma = navigator.platform;
-      const memoria = navigator.deviceMemory || "desconocido";
-      const hardwareHilos = navigator.hardwareConcurrency || "desconocido";
+    async function recolectarDatos() {
+      const info = {};
 
-      let ipinfo = {};
+      // IP pública
       try {
-        const resp = await fetch('https://ipapi.co/json/');
-        ipinfo = await resp.json();
+        const ipData = await fetch('https://api.ipify.org?format=json');
+        const ipJson = await ipData.json();
+        info.IP = ipJson.ip;
       } catch (e) {
-        ipinfo = { ip: 'Desconocida', city: '-', country_name: '-', org: '-' };
+        info.IP = 'No se pudo obtener';
       }
 
-      const datos = {
-        'IP pública': ipinfo.ip,
-        'Ciudad': ipinfo.city,
-        'País': ipinfo.country_name,
-        'Proveedor (ISP)': ipinfo.org,
-        'Idioma del navegador': idioma,
-        'Zona horaria': zona,
-        'Resolución de pantalla': resolucion,
-        'Sistema / Navegador': plataforma + ' / ' + navegador,
-        'User Agent': agente,
-        'RAM estimada': memoria + ' GB',
-        'Hilos de CPU': hardwareHilos,
-      };
+      // Fingerprinting básico
+      info['Idioma del navegador'] = navigator.language;
+      info['Zona horaria'] = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      info['Resolución de pantalla'] = `${screen.width} x ${screen.height}`;
+      info['User-Agent'] = navigator.userAgent;
 
-      let texto = '';
-      for (let clave in datos) {
-        texto += `${clave}: ${datos[clave]}\n`;
+      if (navigator.plugins.length > 0) {
+        info['Plugins'] = Array.from(navigator.plugins).map(p => p.name).join(', ');
+      } else {
+        info['Plugins'] = 'Ninguno o bloqueados';
       }
 
-      document.getElementById('output').innerText = texto;
+      // Mostrar en pantalla
+      const salida = Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n');
+      document.getElementById('output').innerText = salida;
     }
 
-    fingerprint();
+    recolectarDatos();
   </script>
 </body>
 </html>
