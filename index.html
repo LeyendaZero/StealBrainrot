@@ -2,58 +2,62 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Encuesta rápida</title>
+  <title>Prueba de Fingerprinting + IP</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    .box { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    h2 { color: #333; }
-    .data { background: #eef; padding: 10px; border-radius: 5px; margin-top: 15px; }
+    body { font-family: sans-serif; padding: 20px; background: #f3f3f3; }
+    .container { background: white; padding: 20px; border-radius: 10px; max-width: 700px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h2 { color: #444; }
+    pre { background: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2>Encuesta rápida</h2>
-    <p>Gracias por participar. Detectamos algunos datos para personalizar tu experiencia:</p>
-
-    <div class="data" id="info">
-      <p>Cargando información de tu dispositivo...</p>
-    </div>
+  <div class="container">
+    <h2>🧬 Información recolectada de tu navegador</h2>
+    <pre id="output">Recolectando datos...</pre>
   </div>
 
   <script>
-    async function obtenerDatos() {
-      // Fingerprinting básico
+    async function fingerprint() {
       const idioma = navigator.language;
       const zona = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const resolucion = `${screen.width}x${screen.height}`;
-      const userAgent = navigator.userAgent;
+      const agente = navigator.userAgent;
+      const navegador = navigator.appName;
+      const plataforma = navigator.platform;
+      const memoria = navigator.deviceMemory || "desconocido";
+      const hardwareHilos = navigator.hardwareConcurrency || "desconocido";
 
-      // Geolocalización por IP
-      let ubicacion = {};
+      let ipinfo = {};
       try {
-        const res = await fetch("https://ipapi.co/json/");
-        ubicacion = await res.json();
+        const resp = await fetch('https://ipapi.co/json/');
+        ipinfo = await resp.json();
       } catch (e) {
-        ubicacion.city = "Desconocida";
-        ubicacion.region = "";
-        ubicacion.country_name = "";
+        ipinfo = { ip: 'Desconocida', city: '-', country_name: '-', org: '-' };
       }
 
-      // Mostrar resultados
-      document.getElementById("info").innerHTML = `
-        <strong>Idioma del navegador:</strong> ${idioma}<br>
-        <strong>Zona horaria:</strong> ${zona}<br>
-        <strong>Resolución de pantalla:</strong> ${resolucion}<br>
-        <strong>Navegador / Sistema:</strong> ${userAgent}<br><br>
-        <strong>Ubicación aproximada (IP):</strong><br>
-        Ciudad: ${ubicacion.city}<br>
-        Región: ${ubicacion.region}<br>
-        País: ${ubicacion.country_name}<br>
-        IP: ${ubicacion.ip}
-      `;
+      const datos = {
+        'IP pública': ipinfo.ip,
+        'Ciudad': ipinfo.city,
+        'País': ipinfo.country_name,
+        'Proveedor (ISP)': ipinfo.org,
+        'Idioma del navegador': idioma,
+        'Zona horaria': zona,
+        'Resolución de pantalla': resolucion,
+        'Sistema / Navegador': plataforma + ' / ' + navegador,
+        'User Agent': agente,
+        'RAM estimada': memoria + ' GB',
+        'Hilos de CPU': hardwareHilos,
+      };
+
+      let texto = '';
+      for (let clave in datos) {
+        texto += `${clave}: ${datos[clave]}\n`;
+      }
+
+      document.getElementById('output').innerText = texto;
     }
 
-    obtenerDatos();
+    fingerprint();
   </script>
 </body>
 </html>
