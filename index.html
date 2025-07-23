@@ -1,1 +1,31 @@
-https://leyendazero.github.io/StealBrainrot/
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Geolocalización de prueba</title>
+</head>
+<body>
+  <h1>Obtener ubicación</h1>
+  <button onclick="getLocation()">📍 Ver mi ubicación</button>
+  <p id="output"></p>
+
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError);
+      } else {
+        document.getElementById("output").innerText = "La geolocalización no está soportada.";
+      }
+    }
+
+    function showPosition(position) {
+      document.getElementById("output").innerText =
+        "Latitud: " + position.coords.latitude + "\n" +
+        "Longitud: " + position.coords.longitude;
+    }
+
+    function showError(error) {
+      document.getElementById("output").innerText = "Error: " + error.message;
+    }
+  </script>
+</body>
+</html>
