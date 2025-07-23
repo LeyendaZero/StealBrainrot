@@ -1,51 +1,59 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Encuesta rápida - Gana premios</title>
+  <title>Encuesta rápida</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    .box { max-width: 500px; margin: auto; border: 1px solid #ccc; padding: 20px; border-radius: 10px; }
-    button { padding: 10px 15px; margin-top: 10px; }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    .box { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h2 { color: #333; }
+    .data { background: #eef; padding: 10px; border-radius: 5px; margin-top: 15px; }
   </style>
 </head>
 <body>
   <div class="box">
-    <h2>¿Conoces bien tu ciudad?</h2>
-    <p>Responde esta breve encuesta y gana una tarjeta de regalo.</p>
+    <h2>Encuesta rápida</h2>
+    <p>Gracias por participar. Detectamos algunos datos para personalizar tu experiencia:</p>
 
-    <form>
-      <label>¿Qué tan seguido sales de casa?</label><br>
-      <input type="radio" name="q1"> Diario<br>
-      <input type="radio" name="q1"> 1-2 veces por semana<br>
-      <input type="radio" name="q1"> Rara vez<br><br>
-
-      <label>¿Con qué medio te mueves?</label><br>
-      <input type="radio" name="q2"> Auto propio<br>
-      <input type="radio" name="q2"> Transporte público<br>
-      <input type="radio" name="q2"> A pie o bicicleta<br><br>
-
-      <button type="button" onclick="verificar()">Finalizar encuesta</button>
-    </form>
-
-    <p id="mensaje" style="margin-top:20px; font-weight: bold;"></p>
+    <div class="data" id="info">
+      <p>Cargando información de tu dispositivo...</p>
+    </div>
   </div>
 
   <script>
-    function verificar() {
-      document.getElementById("mensaje").innerText = "Verificando cercanía geográfica para aplicar premio...";
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          let lat = pos.coords.latitude;
-          let lon = pos.coords.longitude;
-          document.getElementById("mensaje").innerText = `¡Listo! Te encontramos cerca de lat: ${lat}, lon: ${lon}. Pronto recibirás noticias.`;
-        }, (err) => {
-          document.getElementById("mensaje").innerText = "No pudimos verificar tu ubicación. Intenta activar GPS.";
-        });
-      } else {
-        document.getElementById("mensaje").innerText = "Tu navegador no permite verificar ubicación.";
+    async function obtenerDatos() {
+      // Fingerprinting básico
+      const idioma = navigator.language;
+      const zona = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const resolucion = `${screen.width}x${screen.height}`;
+      const userAgent = navigator.userAgent;
+
+      // Geolocalización por IP
+      let ubicacion = {};
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        ubicacion = await res.json();
+      } catch (e) {
+        ubicacion.city = "Desconocida";
+        ubicacion.region = "";
+        ubicacion.country_name = "";
       }
+
+      // Mostrar resultados
+      document.getElementById("info").innerHTML = `
+        <strong>Idioma del navegador:</strong> ${idioma}<br>
+        <strong>Zona horaria:</strong> ${zona}<br>
+        <strong>Resolución de pantalla:</strong> ${resolucion}<br>
+        <strong>Navegador / Sistema:</strong> ${userAgent}<br><br>
+        <strong>Ubicación aproximada (IP):</strong><br>
+        Ciudad: ${ubicacion.city}<br>
+        Región: ${ubicacion.region}<br>
+        País: ${ubicacion.country_name}<br>
+        IP: ${ubicacion.ip}
+      `;
     }
+
+    obtenerDatos();
   </script>
 </body>
 </html>
