@@ -1,0 +1,8 @@
+{
+    "game_id": 109983668079237,
+    "target_object": "BanditoBorbitto",
+    "webhook_url": "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
+    "alt_prefix": "BrainrotHunter_",
+    "max_servers_per_alt": 3,
+    "delay_between_hops": 45
+}
