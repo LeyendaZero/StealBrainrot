@@ -1,5 +1,5 @@
 -- alt_hunter.lua
-local CONFIG = game:GetService("HttpService"):JSONDecode(game:HttpGet("URL_RAW_alt_config.json"))
+local CONFIG = game:GetService("HttpService"):JSONDecode(game:HttpGet("https://raw.githubusercontent.com/LeyendaZero/StealBrainrot/main/Alt__configt.json"))
 
 local function isAltAccount()
     return string.find(game:GetService("Players").LocalPlayer.Name, CONFIG.alt_prefix) ~= nil
