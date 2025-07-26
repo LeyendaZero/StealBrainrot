@@ -1,10 +1,12 @@
--- brainrot_final_fixed.lua
+-- alt_hunter_stable.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_NAME = "CocofantoElefanto", -- Nombre EXACTO
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
-    VERIFICATION_DELAY = 2, -- Segundos entre verificaciones
-    MAX_TELEPORT_ATTEMPTS = 3,
+    TARGET_PATTERN = "CocofantoElefanto",
+    WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
+    SCAN_RADIUS = 5000,
+    SERVER_HOP_DELAY = 15,  -- Aumentado para evitar flood
+    MAX_RETRY_ATTEMPTS = 5,  -- Intentos por servidor
+    STABILIZATION_WAIT = 10, -- Espera después de unirse
     DEBUG_MODE = true
 }
 
@@ -15,183 +17,154 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔍 Búsqueda precisa (versión optimizada)
-local function findTargetExact()
-    local function recursiveFind(parent)
-        for _, child in ipairs(parent:GetChildren()) do
-            -- Coincidencia exacta de nombre (case sensitive)
-            if child.Name == CONFIG.TARGET_NAME then
-                -- Verificar que sea un objeto físico
-                if child:IsA("Model") or child:IsA("BasePart") then
-                    return child
-                end
-            end
-            
-            -- Búsqueda en subcarpetas
-            if child:IsA("Folder") or child:IsA("Model") then
-                local found = recursiveFind(child)
-                if found then return found end
-            end
-        end
-        return nil
-    end
-    
-    return recursiveFind(Workspace)
-end
-
--- 🚀 Teletransporte ultra-compatible
-local function secureTeleport(jobId)
+-- 🔄 Sistema de teletransporte estabilizado
+local function stableTeleport(jobId)
+    local originalJobId = game.JobId
     local attempts = 0
     
-    while attempts < CONFIG.MAX_TELEPORT_ATTEMPTS do
+    while attempts < CONFIG.MAX_RETRY_ATTEMPTS do
         attempts += 1
         
-        -- Método 1: Standard
-        local success = pcall(function()
+        -- 1. Intentar teletransporte
+        local teleportSuccess = pcall(function()
             TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
         end)
         
-        if success then
-            -- Esperar carga
-            local loaded = false
-            local startTime = os.clock()
-            
-            while os.clock() - startTime < 30 do -- Timeout de 30 segundos
-                if game:IsLoaded() then
-                    loaded = true
-                    break
-                end
-                task.wait(1)
+        if not teleportSuccess then
+            if CONFIG.DEBUG_MODE then
+                print(string.format("⚠️ Intento %d/%d fallido para %s", attempts, CONFIG.MAX_RETRY_ATTEMPTS, jobId))
             end
-            
-            if loaded then
-                -- Espera adicional para assets
-                task.wait(5)
-                return true
-            end
+            task.wait(5)
+            continue
         end
         
-        -- Método 2: Alternativo para exploits modernos
-        if syn and syn.queue_on_teleport then
-            syn.queue_on_teleport("print('Teleport completado')")
+        -- 2. Esperar carga estable
+        local loaded = false
+        local startTime = os.time()
+        
+        repeat
             task.wait(1)
-            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId)
+            loaded = game:IsLoaded() and Players.LocalPlayer.Character ~= nil
+            
+            -- Verificar si nos redirigieron
+            if loaded and game.JobId ~= jobId and os.time() - startTime > 10 then
+                if CONFIG.DEBUG_MODE then
+                    print(string.format("🔀 Redirigido de %s a %s", jobId, game.JobId))
+                end
+                break
+            end
+        until loaded or os.time() - startTime > 15
+        
+        -- 3. Verificación final
+        if loaded and game.JobId == jobId then
+            if CONFIG.DEBUG_MODE then
+                print("✅ Teletransporte estable a", jobId)
+            end
+            task.wait(CONFIG.STABILIZATION_WAIT)
             return true
         end
         
-        task.wait(3) -- Espera entre intentos
+        task.wait(3)
     end
     
     return false
 end
 
--- 📨 Sistema de reportes mejorado
-local function sendFoundReport(target, jobId)
-    local position = target:GetPivot().Position
-    local payload = {
-        content = "@here 🎯 OBJETIVO CONFIRMADO",
-        embeds = {{
-            title = "DETECCIÓN VERIFICADA",
-            description = string.format("**%s** encontrado", target:GetFullName()),
-            color = 65280,
-            fields = {
-                {name = "Posición", value = tostring(position)},
-                {name = "Servidor", value = jobId or game.JobId},
-                {name = "Enlace Directo", value = string.format("roblox://placeId=%d&gameInstanceId=%s", CONFIG.GAME_ID, jobId or game.JobId)}
-            }
-        }}
-    }
-
-    -- Envío compatible con todos los exploits
-    local success, err = pcall(function()
-        if request then
-            request({
-                Url = CONFIG.WEBHOOK_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-        else
-            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
-        end
-    end)
-
-    if not success and CONFIG.DEBUG_MODE then
-        warn("⚠️ Error en webhook:", err)
-    end
+-- 🔍 Escáner (el mismo que funcionó anteriormente)
+local function deepScan()
+    -- ... (mantén el mismo código de escaneo que ya funcionó)
 end
 
--- 🔄 Bucle principal mejorado
-local function main()
-    -- Verificar servidor actual primero
-    local target = findTargetExact()
-    if target then
-        sendFoundReport(target)
-        print("✅ Objetivo encontrado en servidor actual")
-        return
-    end
+-- 📨 Reportes (el mismo que antes)
+local function sendHunterReport(targets, jobId)
+    -- ... (mantén el mismo código de reportes)
+end
 
-    -- Obtener servidores
+-- 🚀 Obtener servidores con información de capacidad
+local function getStableServers()
     local servers = {}
     local success, response = pcall(function()
         return game:HttpGet(string.format(
-            "https://games.roblox.com/v1/games/%d/servers/Public?limit=50",
-            CONFIG.GAME_ID
+            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=%d",
+            CONFIG.GAME_ID, CONFIG.MAX_SERVERS
         ))
     end)
 
-    if not success then
-        warn("❌ Error al obtener servidores:", response)
-        return
+    if success then
+        local data = HttpService:JSONDecode(response)
+        for _, server in ipairs(data.data) do
+            -- Preferir servidores con menos jugadores (más estables)
+            if server.playing and server.playing < (server.maxPlayers * 0.7) then
+                table.insert(servers, {
+                    id = server.id,
+                    players = server.playing,
+                    ping = server.ping or 0
+                })
+            end
+        end
+        
+        -- Ordenar por mejor ping y menor población
+        table.sort(servers, function(a, b)
+            if a.ping ~= b.ping then
+                return a.ping < b.ping
+            else
+                return a.players < b.players
+            end
+        end)
+    else
+        warn("⚠️ Error al obtener servidores:", response)
     end
 
-    servers = HttpService:JSONDecode(response).data
+    return servers
+end
 
-    -- Buscar en cada servidor
-    for _, server in ipairs(servers) do
-        if CONFIG.DEBUG_MODE then
-            print("🔄 Intentando servidor:", server.id)
+-- 🔄 Ciclo de búsqueda mejorado
+local function stableHuntingLoop()
+    print("\n=== INICIANDO MODO HUNTER ESTABLE ===")
+
+    while true do
+        local servers = getStableServers()
+        if #servers == 0 then
+            warn("❌ No se obtuvieron servidores. Reintentando en 1 minuto...")
+            task.wait(60)
+            continue
         end
 
-        if secureTeleport(server.id) then
-            -- Verificación triple
-            local verified = false
-            for i = 1, 3 do
-                task.wait(CONFIG.VERIFICATION_DELAY)
-                target = findTargetExact()
-                if target then
-                    verified = true
+        if CONFIG.DEBUG_MODE then
+            print(string.format("🔄 Obtenidos %d servidores estables", #servers))
+        end
+
+        for _, server in ipairs(servers) do
+            if CONFIG.DEBUG_MODE then
+                print(string.format("🛫 Intentando unirse a %s (%d/%d jugadores, %dms ping)", 
+                    server.id, server.players, server.maxPlayers or 50, server.ping))
+            end
+
+            if stableTeleport(server.id) then
+                local targets = deepScan()
+                sendHunterReport(targets, server.id)
+
+                if #targets > 0 then
+                    print("🎯 Objetivo encontrado! Esperando antes de continuar...")
+                    task.wait(300) -- Espera 5 minutos antes de reiniciar
                     break
                 end
             end
 
-            if verified then
-                sendFoundReport(target, server.id)
-                print("🎯 Servidor confirmado - Manteniéndose en este servidor")
-                
-                -- Bucle de permanencia
-                while true do
-                    task.wait(10)
-                    if not findTargetExact() then
-                        print("⚠️ Objeto desaparecido - Reiniciando búsqueda")
-                        break
-                    end
-                end
-            else
-                print("❌ Objeto no encontrado en este servidor")
-            end
+            task.wait(CONFIG.SERVER_HOP_DELAY)
         end
+
+        if CONFIG.DEBUG_MODE then
+            print("🔁 Reiniciando ciclo de búsqueda...")
+        end
+        task.wait(30)
     end
 end
 
--- Inicialización segura
-local function safeStart()
-    pcall(function()
-        if not LocalPlayer.Character then
-            LocalPlayer.CharacterAdded:Wait()
-        end
-        main()
-    end)
+-- 🎯 Inicialización
+if not LocalPlayer.Character then
+    LocalPlayer.CharacterAdded:Wait()
+    task.wait(5)
 end
 
-safeStart()
+stableHuntingLoop()
