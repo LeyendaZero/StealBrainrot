@@ -2,7 +2,7 @@
 -- alt_tester.lua (Versión corregida)
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_PARENT = "BallerinaCappuccina", -- Nombre exacto del contenedor
+    TARGET_PARENT = "BanditoBorbitto", -- Nombre exacto del contenedor
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
     TEST_SERVER = "ID_DE_SERVIDOR_PRUEBA" -- Opcional
 }
