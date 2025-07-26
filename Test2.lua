@@ -1,138 +1,165 @@
--- alt_hunter_exact_population.lua
+-- ⚙️ CONFIGURACIÓN
 local CONFIG = {
-    GAME_ID = 109983668079237,
-    TARGET_PATTERN = "TralaleroTralala",
-    WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real",
-    SCAN_RADIUS = 5000,
-    SERVER_HOP_DELAY = 15,  -- Mayor tiempo entre saltos
-    MAX_RETRY_ATTEMPTS = 3,  -- Menos intentos para evitar bans
-    STABILIZATION_WAIT = 15, -- Espera después de unirse
-    DEBUG_MODE = true,
-    
-    -- Nuevos parámetros de población
-    TARGET_PLAYER_RANGE = {min = 0, max = 8}, -- Buscar servidores con 6-7 jugadores
-    MAX_SERVER_PLAYERS = 8  -- Capacidad máxima del servidor
+    GAME_ID = 109983668079237, -- ID del juego
+    TARGET_NAMES = {"BombardiloCrocodilo", "BallerinaCappuccina", "BanditoBorbitto", "CocofantoElefanto", "TralaleroTralala"}, -- Nombres posibles
+    WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1", -- Webhook de Discord
+    SCAN_RADIUS = 5000, -- Radio de búsqueda (studs)
+    MAX_TELEPORT_ATTEMPTS = 3, -- Intentos por servidor
+    SERVER_HOP_DELAY = 10, -- Espera entre servidores (segundos)
+    DEBUG_MODE = true -- Muestra logs detallados
 }
 
--- 🛠️ Servicios
+-- 🛠️ SERVICIOS
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🎯 Obtener servidores con población exacta
-local function getOptimalServers()
-    local optimalServers = {}
+-- 🔄 FUNCIÓN PARA EVITAR REDIRECCIONES
+local function forceJoinServer(jobId)
+    local attempts = 0
+    local lastJobId = game.JobId
+    
+    while attempts < CONFIG.MAX_TELEPORT_ATTEMPTS do
+        attempts += 1
+        
+        -- 1. Intentar teletransporte normal
+        local success = pcall(function()
+            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
+        end)
+        
+        if not success then
+            task.wait(5)
+            continue
+        end
+
+        -- 2. Esperar carga (hasta 30 segundos)
+        local startTime = os.clock()
+        repeat
+            task.wait(1)
+        until game:IsLoaded() or (os.clock() - startTime) > 30
+
+        -- 3. Verificar JobID actual
+        if game.JobId == jobId then
+            return true -- ✅ Éxito
+        else
+            warn("⚠️ Redireccionado a:", game.JobId, "| Reintentando...")
+            task.wait(5)
+        end
+    end
+    
+    return false -- ❌ Falló después de varios intentos
+end
+
+-- 🔍 DETECCIÓN DEL BRAINROT (BUSQUEDA PROFUNDA)
+local function findBrainrot()
+    local function scan(parent)
+        for _, child in ipairs(parent:GetChildren()) do
+            -- Busca coincidencias en los nombres configurados
+            for _, targetName in ipairs(CONFIG.TARGET_NAMES) do
+                if string.find(child.Name:lower(), targetName:lower()) then
+                    return child
+                end
+            end
+
+            -- Búsqueda recursiva en modelos/carpetas
+            if child:IsA("Model") or child:IsA("Folder") then
+                local found = scan(child)
+                if found then return found end
+            end
+        end
+        return nil
+    end
+
+    return scan(workspace) -- Escanea desde el Workspace
+end
+
+-- 📨 REPORTE A DISCORD
+local function sendReport(jobId, target)
+    local embed = {
+        title = "🎯 BRAINROT DETECTADO",
+        color = 65280, -- Verde
+        fields = {
+            {name = "Objeto", value = target:GetFullName()},
+            {name = "Posición", value = tostring(target:GetPivot().Position)},
+            {name = "Servidor", value = jobId},
+            {name = "Unirse", value = string.format("roblox://placeId=%d&gameInstanceId=%s", CONFIG.GAME_ID, jobId)}
+        }
+    }
+
+    local payload = {
+        content = "@everyone ¡Objetivo encontrado!",
+        embeds = {embed}
+    }
+
+    -- Envía el reporte (con soporte para múltiples exploits)
+    local success, err = pcall(function()
+        if syn and syn.request then
+            syn.request({
+                Url = CONFIG.WEBHOOK_URL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
+            })
+        else
+            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
+        end
+    end)
+
+    if not success and CONFIG.DEBUG_MODE then
+        warn("Error al enviar reporte:", err)
+    end
+end
+
+-- 🚀 CICLO PRINCIPAL
+local function main()
+    -- Obtener lista de servidores activos
+    local servers = {}
     local success, response = pcall(function()
         return game:HttpGet(string.format(
-            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+            "https://games.roblox.com/v1/games/%d/servers/Public?limit=100",
             CONFIG.GAME_ID
         ))
     end)
 
     if success then
-        local data = HttpService:JSONDecode(response)
-        for _, server in ipairs(data.data) do
-            -- Filtrar por rango de jugadores deseado
-            if server.playing and server.maxPlayers == CONFIG.MAX_SERVER_PLAYERS then
-                if server.playing >= CONFIG.TARGET_PLAYER_RANGE.min and 
-                   server.playing <= CONFIG.TARGET_PLAYER_RANGE.max then
-                    
-                    table.insert(optimalServers, {
-                        id = server.id,
-                        players = server.playing,
-                        ping = server.ping or 0,
-                        -- Calcular "vacantes"
-                        vacancies = (CONFIG.MAX_SERVER_PLAYERS - server.playing)
-                    })
-                end
-            end
-        end
-        
-        -- Ordenar por: 1. Más vacantes, 2. Mejor ping
-        table.sort(optimalServers, function(a, b)
-            if a.vacancies ~= b.vacancies then
-                return a.vacancies > b.vacancies
-            else
-                return a.ping < b.ping
-            end
-        end)
+        servers = HttpService:JSONDecode(response).data
     else
-        warn("⚠️ Error al obtener servidores:", response)
+        warn("Error al obtener servidores:", response)
+        return
     end
 
-    return optimalServers
-end
-
--- 🔄 Teletransporte estabilizado (igual que antes)
-local function stableTeleport(jobId)
-    -- ... (mantener el mismo código anterior)
-end
-
--- 🔍 Escáner y reportes (igual que antes)
-local function deepScan()
-    -- ... (mantener el mismo código que funcionó)
-end
-
-local function sendHunterReport(targets, jobId)
-    -- ... (mantener el mismo código anterior)
-end
-
--- 🚀 Ciclo de búsqueda optimizado
-local function exactPopulationHunting()
-    print("\n=== INICIANDO BÚSQUEDA EN SERVIDORES ", 
-          CONFIG.TARGET_PLAYER_RANGE.min, "-", 
-          CONFIG.TARGET_PLAYER_RANGE.max, "/", 
-          CONFIG.MAX_SERVER_PLAYERS, " ===")
-
-    while true do
-        local servers = getOptimalServers()
-        if #servers == 0 then
-            warn("❌ No hay servidores óptimos. Reintentando en 2 minutos...")
-            task.wait(120)
-            continue
-        end
+    -- Buscar en cada servidor
+    for _, server in ipairs(servers) do
+        local jobId = server.id
 
         if CONFIG.DEBUG_MODE then
-            print(string.format("\n🔄 Encontrados %d servidores ideales", #servers))
-            for i, s in ipairs(servers) do
-                if i <= 5 then  -- Mostrar solo los 5 primeros para no saturar
-                    print(string.format("%d. %s (%d/%d jugadores, %dms ping)", 
-                        i, s.id, s.players, CONFIG.MAX_SERVER_PLAYERS, s.ping))
-                end
+            print("🔍 Intentando unirse a:", jobId)
+        end
+
+        -- 1. Forzar unión al servidor correcto
+        if forceJoinServer(jobId) then
+            -- 2. Esperar a que el personaje cargue
+            if not LocalPlayer.Character then
+                LocalPlayer.CharacterAdded:Wait()
+                task.wait(3)
+            end
+
+            -- 3. Buscar el Brainrot
+            local target = findBrainrot()
+            if target then
+                sendReport(jobId, target)
+                print("✅ Objetivo encontrado. Finalizando búsqueda.")
+                return -- Terminar el script
             end
         end
 
-        for _, server in ipairs(servers) do
-            if CONFIG.DEBUG_MODE then
-                print(string.format("\n🛫 Intentando unirse a %s (%d/%d, %d vacantes)", 
-                    server.id, server.players, CONFIG.MAX_SERVER_PLAYERS, server.vacancies))
-            end
-
-            if stableTeleport(server.id) then
-                local targets = deepScan()
-                sendHunterReport(targets, server.id)
-
-                if #targets > 0 then
-                    print("🎯 Objetivo encontrado! Esperando 5 minutos...")
-                    task.wait(300)
-                    break
-                end
-            end
-
-            task.wait(CONFIG.SERVER_HOP_DELAY)
-        end
-
-        print("\n🔁 Reiniciando ciclo de búsqueda...")
-        task.wait(30)
+        task.wait(CONFIG.SERVER_HOP_DELAY)
     end
+
+    print("🔁 Búsqueda completada. No se encontró el objetivo.")
 end
 
--- 🏁 Iniciar sistema
-if not LocalPlayer.Character then
-    LocalPlayer.CharacterAdded:Wait()
-    task.wait(5)  -- Espera adicional para personaje
-end
-
-exactPopulationHunting()
+-- Iniciar
+main()
