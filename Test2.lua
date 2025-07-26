@@ -1,10 +1,10 @@
--- brainrot_teleporter.lua
+-- brainrot_final_fixed.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_NAME = "Tralalalero Tralala", -- Nombre EXACTO del modelo
+    TARGET_NAME = "Tralalaero Tralala", -- Nombre EXACTO
     WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real",
-    VERIFICATION_ATTEMPTS = 3, -- Veces que verifica antes de reportar
-    SEARCH_RADIUS = 200, -- Radio más pequeño para mayor precisión
+    VERIFICATION_DELAY = 2, -- Segundos entre verificaciones
+    MAX_TELEPORT_ATTEMPTS = 3,
     DEBUG_MODE = true
 }
 
@@ -15,80 +15,96 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔍 Búsqueda ultra-precisaa
-local function locateExactTarget()
-    local target = Workspace:FindFirstChild(CONFIG.TARGET_NAME, true)
-    
-    -- Verificación adicional
-    if target then
-        -- Comprobar que sea un Modelo/Parte válida
-        if not (target:IsA("Model") or target:IsA("BasePart")) then
-            if CONFIG.DEBUG_MODE then
-                print("⚠️ Objeto encontrado pero no es Model/Part:", target.ClassName)
-            end
-            return nil
-        end
-        
-        -- Verificar posición dentro del radio
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            local distance = (target:GetPivot().Position - root.Position).Magnitude
-            if distance > CONFIG.SEARCH_RADIUS then
-                if CONFIG.DEBUG_MODE then
-                    print(string.format("⚠️ Objeto muy lejano (%.1f studs)", distance))
+-- 🔍 Búsqueda precisa (versión optimizada)
+local function findTargetExact()
+    local function recursiveFind(parent)
+        for _, child in ipairs(parent:GetChildren()) do
+            -- Coincidencia exacta de nombre (case sensitive)
+            if child.Name == CONFIG.TARGET_NAME then
+                -- Verificar que sea un objeto físico
+                if child:IsA("Model") or child:IsA("BasePart") then
+                    return child
                 end
-                return nil
+            end
+            
+            -- Búsqueda en subcarpetas
+            if child:IsA("Folder") or child:IsA("Model") then
+                local found = recursiveFind(child)
+                if found then return found end
+            end
+        end
+        return nil
+    end
+    
+    return recursiveFind(Workspace)
+end
+
+-- 🚀 Teletransporte ultra-compatible
+local function secureTeleport(jobId)
+    local attempts = 0
+    
+    while attempts < CONFIG.MAX_TELEPORT_ATTEMPTS do
+        attempts += 1
+        
+        -- Método 1: Standard
+        local success = pcall(function()
+            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
+        end)
+        
+        if success then
+            -- Esperar carga
+            local loaded = false
+            local startTime = os.clock()
+            
+            while os.clock() - startTime < 30 do -- Timeout de 30 segundos
+                if game:IsLoaded() then
+                    loaded = true
+                    break
+                end
+                task.wait(1)
+            end
+            
+            if loaded then
+                -- Espera adicional para assets
+                task.wait(5)
+                return true
             end
         end
         
-        return target
-    end
-    return nil
-end
-
--- 🚔 Sistema anti-falsos positivos
-local function verifyTargetExistence()
-    for i = 1, CONFIG.VERIFICATION_ATTEMPTS do
-        local target = locateExactTarget()
-        if target then
-            if CONFIG.DEBUG_MODE then
-                print(string.format("✅ Verificación %d/%d exitosa", i, CONFIG.VERIFICATION_ATTEMPTS))
-            end
-            return target
+        -- Método 2: Alternativo para exploits modernos
+        if syn and syn.queue_on_teleport then
+            syn.queue_on_teleport("print('Teleport completado')")
+            task.wait(1)
+            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId)
+            return true
         end
-        task.wait(1) -- Pequeña espera entre verificaciones
+        
+        task.wait(3) -- Espera entre intentos
     end
-    return nil
+    
+    return false
 end
 
--- 📨 Reporte infalible
-local function sendSecureReport(target, jobId)
+-- 📨 Sistema de reportes mejorado
+local function sendFoundReport(target, jobId)
     local position = target:GetPivot().Position
     local payload = {
-        content = "@everyone 🎯 BRAINROT CONFIRMADO",
+        content = "@here 🎯 OBJETIVO CONFIRMADO",
         embeds = {{
-            title = "UBICACIÓN EXACTA",
-            description = "Objetivo verificado 3 veces antes de reportar",
+            title = "DETECCIÓN VERIFICADA",
+            description = string.format("**%s** encontrado", target:GetFullName()),
             color = 65280,
             fields = {
-                {name = "Nombre", value = target:GetFullName()},
                 {name = "Posición", value = tostring(position)},
+                {name = "Servidor", value = jobId or game.JobId},
                 {name = "Enlace Directo", value = string.format("roblox://placeId=%d&gameInstanceId=%s", CONFIG.GAME_ID, jobId or game.JobId)}
-            },
-            timestamp = DateTime.now():ToIsoDate()
+            }
         }}
     }
 
-    -- Método ultra-compatible
-    local success = pcall(function()
-        if syn and syn.request then
-            syn.request({
-                Url = CONFIG.WEBHOOK_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-        elseif request then
+    -- Envío compatible con todos los exploits
+    local success, err = pcall(function()
+        if request then
             request({
                 Url = CONFIG.WEBHOOK_URL,
                 Method = "POST",
@@ -96,56 +112,26 @@ local function sendSecureReport(target, jobId)
                 Body = HttpService:JSONEncode(payload)
             })
         else
-            error("No hay método HTTP disponible")
+            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
         end
     end)
 
     if not success and CONFIG.DEBUG_MODE then
-        warn("⚠️ Error al enviar reporte (pero el objetivo SÍ está ahí)")
+        warn("⚠️ Error en webhook:", err)
     end
 end
 
--- 🚫 Anti-teleport aleatorio
-local function safeTeleport(jobId)
-    -- 1. Desactivar cualquier teleport automático
-    if getconnections then
-        for _, conn in ipairs(getconnections(TeleportService.TeleportInitiated)) do
-            conn:Disable()
-        end
-    end
-
-    -- 2. Teletransporte directo
-    local success = pcall(function()
-        TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
-    end)
-
-    -- 3. Espera confirmación
-    if success then
-        repeat task.wait() until game:IsLoaded()
-        
-        -- Espera EXTRA para asegurar carga
-        local waitTime = 0
-        while not Workspace:FindFirstChildWhichIsA("Model") and waitTime < 10 do
-            waitTime += 1
-            task.wait(1)
-        end
-
-        return true
-    end
-    return false
-end
-
--- 🎯 Ejecución principal
+-- 🔄 Bucle principal mejorado
 local function main()
-    -- Verificar objetivo actual primero (por si ya estamos en el server correcto)
-    local target = verifyTargetExistence()
+    -- Verificar servidor actual primero
+    local target = findTargetExact()
     if target then
-        sendSecureReport(target)
-        print("🎯 ¡Objetivo encontrado en el servidor actual!")
+        sendFoundReport(target)
+        print("✅ Objetivo encontrado en servidor actual")
         return
     end
 
-    -- Obtener servidores activos
+    -- Obtener servidores
     local servers = {}
     local success, response = pcall(function()
         return game:HttpGet(string.format(
@@ -154,46 +140,58 @@ local function main()
         ))
     end)
 
-    if success then
-        servers = HttpService:JSONDecode(response).data
-    else
+    if not success then
         warn("❌ Error al obtener servidores:", response)
         return
     end
 
+    servers = HttpService:JSONDecode(response).data
+
     -- Buscar en cada servidor
     for _, server in ipairs(servers) do
-        print("🛫 Uniéndose a:", server.id)
-        
-        if safeTeleport(server.id) then
+        if CONFIG.DEBUG_MODE then
+            print("🔄 Intentando servidor:", server.id)
+        end
+
+        if secureTeleport(server.id) then
             -- Verificación triple
-            local foundTarget = verifyTargetExistence()
-            
-            if foundTarget then
-                sendSecureReport(foundTarget, server.id)
-                print("🎯 ¡Servidor confirmado! No se harán más saltos.")
+            local verified = false
+            for i = 1, 3 do
+                task.wait(CONFIG.VERIFICATION_DELAY)
+                target = findTargetExact()
+                if target then
+                    verified = true
+                    break
+                end
+            end
+
+            if verified then
+                sendFoundReport(target, server.id)
+                print("🎯 Servidor confirmado - Manteniéndose en este servidor")
                 
-                -- Mantenerse en este servidor
+                -- Bucle de permanencia
                 while true do
                     task.wait(10)
-                    -- Verificar periódicamente que el objetivo sigue ahí
-                    if not locateExactTarget() then
-                        warn("⚠️ El objetivo desapareció. Reiniciando búsqueda...")
+                    if not findTargetExact() then
+                        print("⚠️ Objeto desaparecido - Reiniciando búsqueda")
                         break
                     end
                 end
             else
-                print("❌ Objeto no encontrado después de verificación")
+                print("❌ Objeto no encontrado en este servidor")
             end
         end
-        
-        task.wait(CONFIG.SERVER_HOP_DELAY)
     end
 end
 
--- Iniciar
-if not LocalPlayer.Character then
-    LocalPlayer.CharacterAdded:Wait()
+-- Inicialización segura
+local function safeStart()
+    pcall(function()
+        if not LocalPlayer.Character then
+            LocalPlayer.CharacterAdded:Wait()
+        end
+        main()
+    end)
 end
 
-main()
+safeStart()
