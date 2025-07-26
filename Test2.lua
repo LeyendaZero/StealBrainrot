@@ -10,7 +10,7 @@ local CONFIG = {
     DEBUG_MODE = true,
     
     -- Nuevos parámetros de población
-    TARGET_PLAYER_RANGE = {min = 6, max = 7}, -- Buscar servidores con 6-7 jugadores
+    TARGET_PLAYER_RANGE = {min = 0, max = 8}, -- Buscar servidores con 6-7 jugadores
     MAX_SERVER_PLAYERS = 8  -- Capacidad máxima del servidor
 }
 
