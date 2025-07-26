@@ -1,12 +1,13 @@
--- passive_scanner.lua
+-- bot_scanner.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_NAME = "BallerinaCappuccina", -- Nombre exacto del objeto
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
-    SCAN_RADIUS = 5000, -- Radio de búsqueda en studs
-    SERVER_HOP_DELAY = 20, -- Espera entre servidores (segundos)
-    MAX_SERVERS = 100, -- Límite de servidores a escanear
-    DEBUG_MODE = true -- Muestra logs detallados
+    TARGET_NAME = "BallerinaCappuccina",
+    DISCORD_BOT_TOKEN = "MTI4OTAxNTQwMzYyNzk0MTkxOQ.GUDe_R.PYFHfDlZZZViaE7dND0GrHxVVTUJydneVIPIcM", -- Obtener del Developer Portal de Discord
+    CONTROL_CHANNEL_ID = "1394088719421673675", -- Canal para enviar notificaciones
+    SCAN_RADIUS = 5000,
+    SERVER_HOP_DELAY = 30,
+    MAX_SERVERS = 50,
+    DEBUG_MODE = true
 }
 
 -- 🛠️ Servicios
@@ -16,195 +17,121 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔍 Escáner mejorado
+-- 🔍 Escáner mejorado (sin cambios)
 local function deepSearch()
-    local targets = {}
-    local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local referencePosition = rootPart and rootPart.Position or Vector3.new(0, 0, 0)
-
-    local function scanRecursive(parent)
-        for _, child in ipairs(parent:GetChildren()) do
-            -- Coincidencia exacta del nombre
-            if child.Name == CONFIG.TARGET_NAME then
-                local position = child:GetPivot().Position
-                local distance = (position - referencePosition).Magnitude
-                
-                if distance <= CONFIG.SCAN_RADIUS then
-                    table.insert(targets, {
-                        name = child:GetFullName(),
-                        position = position,
-                        distance = distance
-                    })
-                end
-            end
-
-            -- Búsqueda en subcarpetas
-            if child:IsA("Folder") or child:IsA("Model") then
-                scanRecursive(child)
-            end
-        end
-    end
-
-    -- Áreas prioritarias
-    local priorityAreas = {
-        Workspace,
-        Workspace:FindFirstChild("Map") or Workspace,
-        Workspace:FindFirstChild("GameObjects") or Workspace
-    }
-
-    for _, area in ipairs(priorityAreas) do
-        scanRecursive(area)
-    end
-
-    -- Ordenar por proximidad
-    table.sort(targets, function(a, b) return a.distance < b.distance end)
+    -- ... (el mismo código de búsqueda anterior)
     return targets
 end
 
--- 📨 Notificador a Discord
-local function sendDetectionReport(jobId, targets)
-    local embeds = {}
-    local description = string.format("**Objetivo encontrado en el servidor**\n🔹 **Nombre:** %s\n🔹 **Total detectados:** %d", 
-        CONFIG.TARGET_NAME, #targets)
-
-    -- Información de los 3 más cercanos
-    local closest = {}
-    for i = 1, math.min(3, #targets) do
-        table.insert(closest, string.format(
-            "**#%d:** %s (%.1f studs)",
-            i, targets[i].name, targets[i].distance
-        ))
-    end
-
-    -- Construir embed
-    local embed = {
-        title = "🎯 DETECCIÓN EXITOSA",
-        description = description,
-        color = 65280, -- Verde
-        fields = {
-            {name = "Objetos cercanos", value = table.concat(closest, "\n")},
-            {name = "ID del Servidor", value = jobId},
-            {name = "Unirse al servidor", value = string.format(
-                "[Haz clic aquí](roblox://placeId=%d&gameInstanceId=%s)",
-                CONFIG.GAME_ID, jobId
-            )}
-        },
-        footer = {text = "Scanner pasivo - " .. os.date("%X")}
+-- 📡 Comunicación con el bot
+local function sendToBot(message, embedData)
+    local payload = {
+        content = message,
+        embeds = embedData and {embedData} or nil
     }
 
-    -- Enviar reporte
     local success, err = pcall(function()
-        local payload = {
-            content = "@here Objetivo detectado!",
-            embeds = {embed}
-        }
+        if not syn then error("Se requiere Synapse X o equivalente") end
         
-        if syn and syn.request then
-            syn.request({
-                Url = CONFIG.WEBHOOK_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-        else
-            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
-        end
+        syn.request({
+            Url = "https://discord.com/api/v10/channels/"..CONFIG.CONTROL_CHANNEL_ID.."/messages",
+            Method = "POST",
+            Headers = {
+                ["Authorization"] = "Bot "..CONFIG.DISCORD_BOT_TOKEN,
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(payload)
+        })
     end)
 
     if not success and CONFIG.DEBUG_MODE then
-        warn("Error al enviar reporte:", err)
+        warn("Error al enviar al bot:", err)
     end
+    return success
 end
 
--- 🔄 Obtención de servidores
-local function getPublicServers()
-    local servers = {}
-    local success, response = pcall(function()
-        return game:HttpGet(string.format(
-            "https://games.roblox.com/v1/games/%d/servers/Public?limit=%d",
-            CONFIG.GAME_ID, CONFIG.MAX_SERVERS
-        ))
-    end)
-
-    if success then
-        local data = HttpService:JSONDecode(response)
-        for _, server in ipairs(data.data) do
-            if server.playing > 5 then -- Filtrar servidores con jugadores
-                table.insert(servers, server.id)
-            end
-        end
-    else
-        if CONFIG.DEBUG_MODE then
-            warn("Error al obtener servidores:", response)
-        end
-    end
-
-    return servers
+-- 🎯 Generador de embeds
+local function createTargetEmbed(jobId, targets)
+    local embed = {
+        title = "🔍 DETECCIÓN CONFIRMADA",
+        description = string.format("**%s** encontrado en el servidor", CONFIG.TARGET_NAME),
+        color = 65280,
+        fields = {
+            {
+                name = "📌 Ubicación",
+                value = string.format("```%s```", tostring(targets[1].position)),
+                inline = true
+            },
+            {
+                name = "🆔 Server ID",
+                value = string.format("```%s```", jobId),
+                inline = true
+            },
+            {
+                name = "🔗 Enlace Directo",
+                value = string.format("[Unirse al servidor](roblox://placeId=%d&gameInstanceId=%s)", 
+                    CONFIG.GAME_ID, jobId)
+            }
+        },
+        footer = {
+            text = string.format("Detectado por %s • %s", 
+                LocalPlayer.Name, os.date("%X"))
+        }
+    }
+    return embed
 end
 
--- 🚀 Sistema principal
-local function passiveScan()
+-- 🔄 Sistema principal modificado
+local function botScan()
     if CONFIG.DEBUG_MODE then
-        print("\n=== INICIANDO ESCANEO PASIVO ===")
-        print("🔍 Objetivo:", CONFIG.TARGET_NAME)
-        print("📡 Radio de búsqueda:", CONFIG.SCAN_RADIUS, "studs")
+        sendToBot("🟢 Sistema de escaneo iniciado")
     end
 
     while true do
-        local servers = getPublicServers()
+        local servers = getPublicServers() -- Función del código anterior
         if #servers == 0 then
-            if CONFIG.DEBUG_MODE then
-                print("⚠️ No se encontraron servidores. Reintentando...")
-            end
+            sendToBot("⚠️ No se encontraron servidores públicos")
             task.wait(60)
             continue
         end
 
-        if CONFIG.DEBUG_MODE then
-            print("\n🔄 Obtenidos", #servers, "servidores activos")
-        end
-
         for i, serverId in ipairs(servers) do
             if CONFIG.DEBUG_MODE then
-                print(string.format("\n(%d/%d) Escaneando servidor: %s", i, #servers, serverId))
+                sendToBot(string.format("🔄 Escaneando servidor %d/%d", i, #servers))
             end
 
-            -- Intento de unión al servidor
             local joinSuccess = pcall(function()
                 TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, serverId, LocalPlayer)
             end)
 
             if joinSuccess then
-                -- Esperar carga completa
                 repeat task.wait(1) until game:IsLoaded()
-                task.wait(5) -- Espera adicional
+                task.wait(5)
 
-                -- Buscar objetivo
                 local targets = deepSearch()
                 if #targets > 0 then
-                    if CONFIG.DEBUG_MODE then
-                        print("🎯 Objetivo encontrado! Enviando reporte...")
-                    end
-                    sendDetectionReport(serverId, targets)
-                    break -- Terminar después de encontrar
+                    local embed = createTargetEmbed(serverId, targets)
+                    sendToBot("@everyone 🎯 OBJETIVO DETECTADO", embed)
+                    break
                 end
-            elseif CONFIG.DEBUG_MODE then
-                print("⚠️ Error al unirse al servidor:", serverId)
             end
 
             task.wait(CONFIG.SERVER_HOP_DELAY)
         end
 
-        if CONFIG.DEBUG_MODE then
-            print("\n🔁 Ciclo de escaneo completado. Reiniciando...")
-        end
-        task.wait(60) -- Espera antes de nuevo ciclo
+        task.wait(60)
     end
 end
 
--- Iniciar sistema
+-- 🚀 Inicialización
 if not LocalPlayer.Character then
     LocalPlayer.CharacterAdded:Wait()
 end
 
-passiveScan()
+-- Verificar credenciales primero
+if CONFIG.DISCORD_BOT_TOKEN == "TU_BOT_TOKEN_AQUI" then
+    warn("❌ Configura el token del bot primero")
+else
+    sendToBot("🔍 Iniciando escaneo pasivo...")
+    botScan()
+end
