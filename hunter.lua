@@ -1,7 +1,7 @@
 local CONFIG = {
     GAME_ID = 109983668079237,
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
-    JOB_LIST_URL = "https://tugithub.github.io/StealBrainrot/web/joblist.json",
+    JOB_LIST_URL = "https://leyendazero.github.io/StealBrainrot/joblist.json",
     TARGET_OBJECT = "Ballerina.Capuccina",
     CHECK_DELAY = 5
 }
