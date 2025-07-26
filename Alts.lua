@@ -5,8 +5,8 @@
 local CONFIG = {
     GAME_ID = 109983668079237, -- ID del juego Roblox
     TARGET_OBJECT = "Ballerina.Capuccina", -- Objeto a buscar
-    WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real", -- Webhook real de Discord
-    JOB_LIST_URL = "https://raw.githubusercontent.com/tuusuario/StealBrainrot/main/web/joblist.json",
+    WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA", -- Webhook real de Discord
+    JOB_LIST_URL = "https://raw.githubusercontent.com/LeyendaZero/StealBrainrot/main/joblist.json",
     SEARCH_DELAY = 5, -- Tiempo entre búsquedas (segundos)
     LOAD_WAIT_TIME = 10, -- Tiempo de espera después de unirte a un servidor
     MAX_SERVERS = 50 -- Máximo de servidores a analizar
