@@ -2,8 +2,8 @@
 local CONFIG = {
     GAME_ID = 109983668079237,
     TARGET_OBJECT = "Ballerina.Capuccina",
-    JOB_LIST_URL = "https://raw.githubusercontent.com/tuusuario/StealBrainrot/main/web/joblist.json",
-    WEBHOOK_URL = "https://discord.com/api/webhooks/...",
+    JOB_LIST_URL = "https://raw.githubusercontent.com/LeyendaZero/StealBrainrot/main/web/joblist.json",
+    WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
     SEARCH_RADIUS = 50,
     CHECK_INTERVAL = 30
 }
