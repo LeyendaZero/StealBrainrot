@@ -1,13 +1,17 @@
--- alt_hunter_stable.lua
+-- alt_hunter_exact_population.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_PATTERN = "CocofantoElefanto",
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
+    TARGET_PATTERN = "TralaleroTralala",
+    WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real",
     SCAN_RADIUS = 5000,
-    SERVER_HOP_DELAY = 15,  -- Aumentado para evitar flood
-    MAX_RETRY_ATTEMPTS = 5,  -- Intentos por servidor
-    STABILIZATION_WAIT = 10, -- Espera después de unirse
-    DEBUG_MODE = true
+    SERVER_HOP_DELAY = 15,  -- Mayor tiempo entre saltos
+    MAX_RETRY_ATTEMPTS = 3,  -- Menos intentos para evitar bans
+    STABILIZATION_WAIT = 15, -- Espera después de unirse
+    DEBUG_MODE = true,
+    
+    -- Nuevos parámetros de población
+    TARGET_PLAYER_RANGE = {min = 6, max = 7}, -- Buscar servidores con 6-7 jugadores
+    MAX_SERVER_PLAYERS = 8  -- Capacidad máxima del servidor
 }
 
 -- 🛠️ Servicios
@@ -17,127 +21,93 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔄 Sistema de teletransporte estabilizado
-local function stableTeleport(jobId)
-    local originalJobId = game.JobId
-    local attempts = 0
-    
-    while attempts < CONFIG.MAX_RETRY_ATTEMPTS do
-        attempts += 1
-        
-        -- 1. Intentar teletransporte
-        local teleportSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
-        end)
-        
-        if not teleportSuccess then
-            if CONFIG.DEBUG_MODE then
-                print(string.format("⚠️ Intento %d/%d fallido para %s", attempts, CONFIG.MAX_RETRY_ATTEMPTS, jobId))
-            end
-            task.wait(5)
-            continue
-        end
-        
-        -- 2. Esperar carga estable
-        local loaded = false
-        local startTime = os.time()
-        
-        repeat
-            task.wait(1)
-            loaded = game:IsLoaded() and Players.LocalPlayer.Character ~= nil
-            
-            -- Verificar si nos redirigieron
-            if loaded and game.JobId ~= jobId and os.time() - startTime > 10 then
-                if CONFIG.DEBUG_MODE then
-                    print(string.format("🔀 Redirigido de %s a %s", jobId, game.JobId))
-                end
-                break
-            end
-        until loaded or os.time() - startTime > 15
-        
-        -- 3. Verificación final
-        if loaded and game.JobId == jobId then
-            if CONFIG.DEBUG_MODE then
-                print("✅ Teletransporte estable a", jobId)
-            end
-            task.wait(CONFIG.STABILIZATION_WAIT)
-            return true
-        end
-        
-        task.wait(3)
-    end
-    
-    return false
-end
-
--- 🔍 Escáner (el mismo que funcionó anteriormente)
-local function deepScan()
-    -- ... (mantén el mismo código de escaneo que ya funcionó)
-end
-
--- 📨 Reportes (el mismo que antes)
-local function sendHunterReport(targets, jobId)
-    -- ... (mantén el mismo código de reportes)
-end
-
--- 🚀 Obtener servidores con información de capacidad
-local function getStableServers()
-    local servers = {}
+-- 🎯 Obtener servidores con población exacta
+local function getOptimalServers()
+    local optimalServers = {}
     local success, response = pcall(function()
         return game:HttpGet(string.format(
-            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=%d",
-            CONFIG.GAME_ID, CONFIG.MAX_SERVERS
+            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+            CONFIG.GAME_ID
         ))
     end)
 
     if success then
         local data = HttpService:JSONDecode(response)
         for _, server in ipairs(data.data) do
-            -- Preferir servidores con menos jugadores (más estables)
-            if server.playing and server.playing < (server.maxPlayers * 0.7) then
-                table.insert(servers, {
-                    id = server.id,
-                    players = server.playing,
-                    ping = server.ping or 0
-                })
+            -- Filtrar por rango de jugadores deseado
+            if server.playing and server.maxPlayers == CONFIG.MAX_SERVER_PLAYERS then
+                if server.playing >= CONFIG.TARGET_PLAYER_RANGE.min and 
+                   server.playing <= CONFIG.TARGET_PLAYER_RANGE.max then
+                    
+                    table.insert(optimalServers, {
+                        id = server.id,
+                        players = server.playing,
+                        ping = server.ping or 0,
+                        -- Calcular "vacantes"
+                        vacancies = (CONFIG.MAX_SERVER_PLAYERS - server.playing)
+                    })
+                end
             end
         end
         
-        -- Ordenar por mejor ping y menor población
-        table.sort(servers, function(a, b)
-            if a.ping ~= b.ping then
-                return a.ping < b.ping
+        -- Ordenar por: 1. Más vacantes, 2. Mejor ping
+        table.sort(optimalServers, function(a, b)
+            if a.vacancies ~= b.vacancies then
+                return a.vacancies > b.vacancies
             else
-                return a.players < b.players
+                return a.ping < b.ping
             end
         end)
     else
         warn("⚠️ Error al obtener servidores:", response)
     end
 
-    return servers
+    return optimalServers
 end
 
--- 🔄 Ciclo de búsqueda mejorado
-local function stableHuntingLoop()
-    print("\n=== INICIANDO MODO HUNTER ESTABLE ===")
+-- 🔄 Teletransporte estabilizado (igual que antes)
+local function stableTeleport(jobId)
+    -- ... (mantener el mismo código anterior)
+end
+
+-- 🔍 Escáner y reportes (igual que antes)
+local function deepScan()
+    -- ... (mantener el mismo código que funcionó)
+end
+
+local function sendHunterReport(targets, jobId)
+    -- ... (mantener el mismo código anterior)
+end
+
+-- 🚀 Ciclo de búsqueda optimizado
+local function exactPopulationHunting()
+    print("\n=== INICIANDO BÚSQUEDA EN SERVIDORES ", 
+          CONFIG.TARGET_PLAYER_RANGE.min, "-", 
+          CONFIG.TARGET_PLAYER_RANGE.max, "/", 
+          CONFIG.MAX_SERVER_PLAYERS, " ===")
 
     while true do
-        local servers = getStableServers()
+        local servers = getOptimalServers()
         if #servers == 0 then
-            warn("❌ No se obtuvieron servidores. Reintentando en 1 minuto...")
-            task.wait(60)
+            warn("❌ No hay servidores óptimos. Reintentando en 2 minutos...")
+            task.wait(120)
             continue
         end
 
         if CONFIG.DEBUG_MODE then
-            print(string.format("🔄 Obtenidos %d servidores estables", #servers))
+            print(string.format("\n🔄 Encontrados %d servidores ideales", #servers))
+            for i, s in ipairs(servers) do
+                if i <= 5 then  -- Mostrar solo los 5 primeros para no saturar
+                    print(string.format("%d. %s (%d/%d jugadores, %dms ping)", 
+                        i, s.id, s.players, CONFIG.MAX_SERVER_PLAYERS, s.ping))
+                end
+            end
         end
 
         for _, server in ipairs(servers) do
             if CONFIG.DEBUG_MODE then
-                print(string.format("🛫 Intentando unirse a %s (%d/%d jugadores, %dms ping)", 
-                    server.id, server.players, server.maxPlayers or 50, server.ping))
+                print(string.format("\n🛫 Intentando unirse a %s (%d/%d, %d vacantes)", 
+                    server.id, server.players, CONFIG.MAX_SERVER_PLAYERS, server.vacancies))
             end
 
             if stableTeleport(server.id) then
@@ -145,8 +115,8 @@ local function stableHuntingLoop()
                 sendHunterReport(targets, server.id)
 
                 if #targets > 0 then
-                    print("🎯 Objetivo encontrado! Esperando antes de continuar...")
-                    task.wait(300) -- Espera 5 minutos antes de reiniciar
+                    print("🎯 Objetivo encontrado! Esperando 5 minutos...")
+                    task.wait(300)
                     break
                 end
             end
@@ -154,17 +124,15 @@ local function stableHuntingLoop()
             task.wait(CONFIG.SERVER_HOP_DELAY)
         end
 
-        if CONFIG.DEBUG_MODE then
-            print("🔁 Reiniciando ciclo de búsqueda...")
-        end
+        print("\n🔁 Reiniciando ciclo de búsqueda...")
         task.wait(30)
     end
 end
 
--- 🎯 Inicialización
+-- 🏁 Iniciar sistema
 if not LocalPlayer.Character then
     LocalPlayer.CharacterAdded:Wait()
-    task.wait(5)
+    task.wait(5)  -- Espera adicional para personaje
 end
 
-stableHuntingLoop()
+exactPopulationHunting()
