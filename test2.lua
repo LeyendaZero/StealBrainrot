@@ -4,8 +4,8 @@ local CONFIG = {
     TARGET_NAME = "BallerinaCappuccina", -- Nombre exacto del objeto
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
     SCAN_RADIUS = 5000, -- Radio de búsqueda en studs
-    SERVER_HOP_DELAY = 30, -- Espera entre servidores (segundos)
-    MAX_SERVERS = 50, -- Límite de servidores a escanear
+    SERVER_HOP_DELAY = 20, -- Espera entre servidores (segundos)
+    MAX_SERVERS = 100, -- Límite de servidores a escanear
     DEBUG_MODE = true -- Muestra logs detallados
 }
 
