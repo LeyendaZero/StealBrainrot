@@ -4,7 +4,7 @@ local CONFIG = {
     GAME_ID = 109983668079237,
     TARGET_PARENT = "BanditoBorbitto", -- Nombre exacto del contenedor
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
-    TEST_SERVER = "ID_DE_SERVIDOR_PRUEBA" -- Opcional
+    TEST_SERVER = "b997f958-51fc-42c0-a5ff-2cb3f2f8abla" -- Opcional
 }
 
 -- 🛠️ SERVICIOS
