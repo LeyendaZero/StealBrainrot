@@ -1,183 +1,149 @@
-
-
--- alt_detector.lua
+-- bandito_scanner.lua
 local CONFIG = {
-    GAME_ID = 109983668079237,
-    TARGET_NAME = "BanditoBorbitto", -- Nombre exacto del modelo
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
-    SEARCH_DEPTH = 5, -- Profundidad de búsqueda recursiva
-    DEBUG_MODE = true -- Muestra mensajes detallados
+    SCAN_RADIUS = 5000, -- Studs alrededor del jugador a escanear
+    TARGET_PATTERN = "Bandito", -- Palabra clave para buscar (puede ser parte del nombre)
+    WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real",
+    DEBUG_MODE = true -- Muestra información detallada
 }
 
 -- 🛠️ Servicios esenciales
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔍 Búsqueda ultra-precisaa
-local function deepFindTarget()
-    local function scan(parent, depth)
-        if depth > CONFIG.SEARCH_DEPTH then return nil end
-        
-        for _, child in ipairs(parent:GetChildren()) do
-            if child.Name == CONFIG.TARGET_NAME then
-                if CONFIG.DEBUG_MODE then
-                    print("✅ OBJETIVO ENCONTRADO:", child:GetFullName())
-                end
-                return child
-            end
-            
-            -- Búsqueda recursiva en subcarpetas
-            if child:IsA("Folder") or child:IsA("Model") then
-                local found = scan(child, depth + 1)
-                if found then return found end
-            end
-        end
+-- 🔍 Escáner ultra-exhaustivo
+local function fullWorkspaceScan()
+    if not LocalPlayer.Character then
+        warn("❌ No hay personaje del jugador")
         return nil
     end
+
+    local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then
+        warn("❌ No se encontró HumanoidRootPart")
+        return nil
+    end
+
+    local foundObjects = {}
+    local startTime = os.clock()
     
-    return scan(workspace, 0)
+    -- Función recursiva de escaneo
+    local function scanRecursive(parent)
+        for _, child in ipairs(parent:GetChildren()) do
+            -- Verificar por nombre
+            if string.find(child.Name:lower(), CONFIG.TARGET_PATTERN:lower()) then
+                table.insert(foundObjects, {
+                    name = child:GetFullName(),
+                    position = child:GetPivot().Position,
+                    distance = (child:GetPivot().Position - rootPart.Position).Magnitude
+                })
+            end
+            
+            -- Escanear recursivamente
+            if child:IsA("Folder") or child:IsA("Model") then
+                scanRecursive(child)
+            end
+        end
+    end
+
+    -- Escanear áreas críticas primero
+    local priorityAreas = {
+        Workspace,
+        Workspace:FindFirstChild("Map") or Workspace,
+        Workspace:FindFirstChild("GameObjects") or Workspace
+    }
+
+    for _, area in ipairs(priorityAreas) do
+        scanRecursive(area)
+    end
+
+    -- Ordenar por distancia
+    table.sort(foundObjects, function(a, b) return a.distance < b.distance end)
+
+    if CONFIG.DEBUG_MODE then
+        print(string.format("\n🔍 Escaneo completado en %.2f segundos", os.clock() - startTime))
+        print("📊 Objetos encontrados:", #foundObjects)
+        for i, obj in ipairs(foundObjects) do
+            print(string.format("%d. %s (Distancia: %.1f studs)", i, obj.name, obj.distance))
+        end
+    end
+
+    return foundObjects
 end
 
--- 📨 Sistema de reportes mejorado
-local function safeSendWebhook(data)
+-- 📨 Reporte inteligente
+local function sendScanReport(foundObjects)
+    local embeds = {}
+    local content = #foundObjects > 0 and "@here Objetivos encontrados!" or nil
+
+    if #foundObjects > 0 then
+        for i, obj in ipairs(foundObjects) do
+            if i <= 5 then -- Limitar a 5 resultados principales
+                table.insert(embeds, {
+                    title = "OBJETO #"..i,
+                    description = obj.name,
+                    color = 65280,
+                    fields = {
+                        {name = "Distancia", value = string.format("%.1f studs", obj.distance), inline = true},
+                        {name = "Posición", value = tostring(obj.position), inline = true},
+                        {name = "Servidor", value = game.JobId}
+                    }
+                })
+            end
+        end
+    else
+        table.insert(embeds, {
+            title = "ESCANEO COMPLETADO",
+            description = "No se encontraron objetos coincidentes",
+            color = 16711680,
+            fields = {
+                {name = "Patrón buscado", value = CONFIG.TARGET_PATTERN},
+                {name = "Servidor", value = game.JobId}
+            }
+        })
+    end
+
     local success, err = pcall(function()
-        local payload = HttpService:JSONEncode(data)
+        local payload = {
+            content = content,
+            embeds = embeds
+        }
+        
         if syn and syn.request then
             syn.request({
                 Url = CONFIG.WEBHOOK_URL,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
-                Body = payload
+                Body = HttpService:JSONEncode(payload)
             })
         else
-            HttpService:PostAsync(CONFIG.WEBHOOK_URL, payload)
+            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
         end
     end)
-    
+
     if not success and CONFIG.DEBUG_MODE then
-        warn("⚠️ Error en webhook (seguro):", err)
+        warn("⚠️ Error al enviar reporte:", err)
     end
-end
-
--- 🧪 Verificación completa
-local function fullScan()
-    print("\n=== ESCANEO INICIADO ===")
-    
-    -- 1. Verificar carga del juego
-    if not workspace:IsDescendantOf(game) then
-        print("❌ El workspace no está cargado correctamente")
-        return false
-    end
-
-    -- 2. Búsqueda profunda
-    local target = deepFindTarget()
-    
-    -- 3. Reporte de resultados
-    if target then
-        local position = target:GetPivot().Position
-        print("🎯 OBJETIVO LOCALIZADO EN:", position)
-        
-        safeSendWebhook({
-            embeds = {{
-                title = "DETECCIÓN CONFIRMADA",
-                description = "El objetivo fue encontrado con éxito",
-                color = 65280,
-                fields = {
-                    {name = "Objeto", value = target:GetFullName()},
-                    {name = "Posición", value = tostring(position)},
-                    {name = "Servidor", value = game.JobId}
-                }
-            }}
-        })
-        return true
-    else
-        print("❌ Objeto no encontrado después de búsqueda exhaustiva")
-        
-        -- Reporte de servidor vacío
-        safeSendWebhook({
-            embeds = {{
-                title = "OBJETIVO NO ENCONTRADO",
-                description = "Búsqueda completada sin resultados",
-                color = 16711680,
-                fields = {
-                    {name = "Servidor", value = game.JobId}
-                }
-            }}
-        })
-        return false
-    end
-end
-
--- 🚀 Sistema de conexión mejorado
-local function joinServer(jobId)
-    local attempts = 0
-    local maxAttempts = 3
-    
-    repeat
-        attempts += 1
-        local success = pcall(function()
-            TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
-        end)
-        
-        if success then
-            repeat task.wait(1) until game:IsLoaded()
-            
-            -- Espera adicional para assets críticos
-            local waitTime = 0
-            while not workspace:FindFirstChildWhichIsA("Model") and waitTime < 10 do
-                waitTime += 1
-                task.wait(1)
-            end
-            
-            return fullScan()
-        else
-            print(string.format("⚠️ Intento %d/%d fallido", attempts, maxAttempts))
-            task.wait(3)
-        end
-    until attempts >= maxAttempts
-    
-    return false
-end
-
--- 📡 Obtener servidores activos (alternativa segura)
-local function getPublicServers()
-    local servers = {}
-    local success, response = pcall(function()
-        return game:HttpGet(
-            string.format("https://games.roblox.com/v1/games/%d/servers/Public?limit=50", 
-            CONFIG.GAME_ID)
-        )
-    end)
-    
-    if success then
-        local data = HttpService:JSONDecode(response)
-        for _, server in ipairs(data.data) do
-            table.insert(servers, server.id)
-        end
-    else
-        print("⚠️ Error al obtener servidores:", response)
-    end
-    
-    return servers
 end
 
 -- 🎯 Ejecución principal
-if CONFIG.DEBUG_MODE then
-    print("=== MODO DEBUG ACTIVADO ===")
-    print("Objetivo buscado:", CONFIG.TARGET_NAME)
-    print("Webhook configurado:", CONFIG.WEBHOOK_URL)
+local function main()
+    print("\n=== INICIANDO ESCANEO COMPLETO ===")
+    print("🔍 Buscando patrones que contengan:", CONFIG.TARGET_PATTERN)
+    
+    local foundObjects = fullWorkspaceScan()
+    sendScanReport(foundObjects)
+    
+    print("\n=== ESCANEO FINALIZADO ===")
+    if CONFIG.DEBUG_MODE then
+        print("Presiona F9 para ver detalles completos")
+    end
 end
 
--- Opción 1: Escanear servidor actual
-fullScan()
-
--- Opción 2: Unirse a servidores aleatorios (descomentar para usar)
---[[
-local servers = getPublicServers()
-for _, jobId in ipairs(servers) do
-    if joinServer(jobId) then break end
-    task.wait(5)
+-- Esperar a que el personaje cargue
+if not LocalPlayer.Character then
+    LocalPlayer.CharacterAdded:Wait()
 end
-]]
+
+main()
