@@ -4,7 +4,7 @@
 -- ⚙️ CONFIGURACIÓN BÁSICA (Ajusta estos valores)
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_OBJECT = "Ballerina.Capuccina",
+    TARGET_OBJECT = "Ballerina",
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
     TEST_SERVER = "ed5fd652-2b69-4abb-8e7c-851lee08e610" -- Opcional: para probar en un server concreto
 }
