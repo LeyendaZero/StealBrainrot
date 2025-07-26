@@ -3,7 +3,7 @@ local CONFIG = {
     TARGET_NAME = "BallerinaCappuccina", -- Nombre exacto del objeto
     WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1",
     SCAN_RADIUS = 5000, -- Radio de búsqueda en studs
-    SCAN_INTERVAL = 50, -- Tiempo entre escaneos (segundos)
+    SCAN_INTERVAL = 60, -- Tiempo entre escaneos (segundos)
     DEBUG_MODE = true   -- Muestra información detallada
 }
 
