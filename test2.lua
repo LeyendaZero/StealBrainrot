@@ -1,9 +1,8 @@
--- bot_scanner.lua
+-- delta_scanner.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
     TARGET_NAME = "BallerinaCappuccina",
-    DISCORD_BOT_TOKEN = "MTI4OTAxNTQwMzYyNzk0MTkxOQ.GUDe_R.PYFHfDlZZZViaE7dND0GrHxVVTUJydneVIPIcM", -- Obtener del Developer Portal de Discord
-    CONTROL_CHANNEL_ID = "1394088719421673675", -- Canal para enviar notificaciones
+    WEBHOOK_URL = "https://discord.com/api/webhooks/1398573923280359425/SQDEI2MXkQUC6f4WGdexcHGdmYpUO_sARSkuBmF-Wa-fjQjsvpTiUjVcEjrvuVdSKGb1", -- Usar webhook normal
     SCAN_RADIUS = 5000,
     SERVER_HOP_DELAY = 30,
     MAX_SERVERS = 50,
@@ -17,121 +16,142 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- 🔍 Escáner mejorado (sin cambios)
-local function deepSearch()
-    -- ... (el mismo código de búsqueda anterior)
-    return targets
+-- 🔍 Función de búsqueda optimizada
+local function findTarget()
+    local startTime = os.clock()
+    local target = Workspace:FindFirstChild(CONFIG.TARGET_NAME, true)
+    
+    if CONFIG.DEBUG_MODE then
+        print(string.format("🔍 Búsqueda completada en %.2f segundos", os.clock() - startTime))
+        print(target and "✅ Objetivo encontrado: "..target:GetFullName() or "❌ Objeto no encontrado")
+    end
+    
+    return target
 end
 
--- 📡 Comunicación con el bot
-local function sendToBot(message, embedData)
+-- 📨 Envío seguro a Discord (compatible con Delta)
+local function sendToDiscord(message, embed)
     local payload = {
         content = message,
-        embeds = embedData and {embedData} or nil
+        embeds = embed and {embed} or nil
     }
 
     local success, err = pcall(function()
-        if not syn then error("Se requiere Synapse X o equivalente") end
-        
-        syn.request({
-            Url = "https://discord.com/api/v10/channels/"..CONFIG.CONTROL_CHANNEL_ID.."/messages",
+        -- Método compatible con Delta
+        local response = request({
+            Url = CONFIG.WEBHOOK_URL,
             Method = "POST",
             Headers = {
-                ["Authorization"] = "Bot "..CONFIG.DISCORD_BOT_TOKEN,
                 ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode(payload)
         })
+        
+        if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+            error("Código de estado: "..response.StatusCode)
+        end
     end)
 
     if not success and CONFIG.DEBUG_MODE then
-        warn("Error al enviar al bot:", err)
+        print("⚠️ Error al enviar a Discord:", err)
     end
-    return success
 end
 
--- 🎯 Generador de embeds
-local function createTargetEmbed(jobId, targets)
-    local embed = {
-        title = "🔍 DETECCIÓN CONFIRMADA",
-        description = string.format("**%s** encontrado en el servidor", CONFIG.TARGET_NAME),
-        color = 65280,
-        fields = {
-            {
-                name = "📌 Ubicación",
-                value = string.format("```%s```", tostring(targets[1].position)),
-                inline = true
-            },
-            {
-                name = "🆔 Server ID",
-                value = string.format("```%s```", jobId),
-                inline = true
-            },
-            {
-                name = "🔗 Enlace Directo",
-                value = string.format("[Unirse al servidor](roblox://placeId=%d&gameInstanceId=%s)", 
-                    CONFIG.GAME_ID, jobId)
-            }
-        },
-        footer = {
-            text = string.format("Detectado por %s • %s", 
-                LocalPlayer.Name, os.date("%X"))
-        }
-    }
-    return embed
+-- 🔄 Obtención de servidores públicos
+local function getPublicServers()
+    local servers = {}
+    local success, response = pcall(function()
+        return game:HttpGetAsync(string.format(
+            "https://games.roblox.com/v1/games/%d/servers/Public?limit=%d",
+            CONFIG.GAME_ID, CONFIG.MAX_SERVERS
+        ))
+    end)
+
+    if success then
+        local data = HttpService:JSONDecode(response)
+        for _, server in ipairs(data.data) do
+            if server.playing > 3 then -- Filtrar servidores muertos
+                table.insert(servers, server.id)
+            end
+        end
+    elseif CONFIG.DEBUG_MODE then
+        print("⚠️ Error al obtener servidores:", response)
+    end
+
+    return servers
 end
 
--- 🔄 Sistema principal modificado
-local function botScan()
-    if CONFIG.DEBUG_MODE then
-        sendToBot("🟢 Sistema de escaneo iniciado")
-    end
+-- 🚀 Sistema principal simplificado
+local function startScanning()
+    print("\n=== INICIANDO ESCANEO ===")
+    print("Objetivo:", CONFIG.TARGET_NAME)
+    print("Radio de búsqueda:", CONFIG.SCAN_RADIUS, "studs")
 
     while true do
-        local servers = getPublicServers() -- Función del código anterior
+        local servers = getPublicServers()
         if #servers == 0 then
-            sendToBot("⚠️ No se encontraron servidores públicos")
+            print("⚠️ No se encontraron servidores. Reintentando...")
             task.wait(60)
             continue
         end
 
+        print("\n🔄 Obtenidos", #servers, "servidores activos")
+
         for i, serverId in ipairs(servers) do
-            if CONFIG.DEBUG_MODE then
-                sendToBot(string.format("🔄 Escaneando servidor %d/%d", i, #servers))
-            end
+            print(string.format("\n(%d/%d) Uniéndose a: %s", i, #servers, serverId))
 
             local joinSuccess = pcall(function()
-                TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, serverId, LocalPlayer)
+                TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, serverId)
             end)
 
             if joinSuccess then
+                -- Esperar carga
                 repeat task.wait(1) until game:IsLoaded()
-                task.wait(5)
+                task.wait(3) -- Espera adicional
 
-                local targets = deepSearch()
-                if #targets > 0 then
-                    local embed = createTargetEmbed(serverId, targets)
-                    sendToBot("@everyone 🎯 OBJETIVO DETECTADO", embed)
-                    break
+                local target = findTarget()
+                if target then
+                    local position = target:GetPivot().Position
+                    print("🎯 Objetivo encontrado en:", position)
+
+                    sendToDiscord("@here OBJETIVO ENCONTRADO", {
+                        title = "DETECCIÓN EXITOSA",
+                        description = string.format("**%s** encontrado", CONFIG.TARGET_NAME),
+                        color = 65280,
+                        fields = {
+                            {name = "Posición", value = tostring(position)},
+                            {name = "Servidor", value = serverId},
+                            {name = "Enlace", value = string.format(
+                                "roblox://placeId=%d&gameInstanceId=%s",
+                                CONFIG.GAME_ID, serverId
+                            )}
+                        }
+                    })
+                    return -- Terminar después de encontrar
                 end
+            else
+                print("⚠️ Error al unirse al servidor")
             end
 
             task.wait(CONFIG.SERVER_HOP_DELAY)
         end
 
-        task.wait(60)
+        print("\n🔁 Ciclo completado. Reiniciando...")
+        task.wait(30)
     end
 end
 
--- 🚀 Inicialización
+-- ⚙️ Inicialización
 if not LocalPlayer.Character then
     LocalPlayer.CharacterAdded:Wait()
+    task.wait(2)
 end
 
--- Verificar credenciales primero
-if CONFIG.DISCORD_BOT_TOKEN == "TU_BOT_TOKEN_AQUI" then
-    warn("❌ Configura el token del bot primero")
-else
-    sendToBot("🔍 Iniciando escaneo pasivo...")
-    botScan()
+-- Verificar si request está disponible
+if not request then
+    print("❌ 'request' no está disponible. Usando método alternativo...")
+    -- Método alternativo con HttpPostAsync
+    CONFIG.USE_ALTERNATE_HTTP = true
 end
+
+startScanning()
