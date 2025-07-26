@@ -1,7 +1,7 @@
 -- brainrot_final_fixed.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_NAME = "Tralalaero Tralala", -- Nombre EXACTO
+    TARGET_NAME = "TralalaeroTralala", -- Nombre EXACTO
     WEBHOOK_URL = "https://discord.com/api/webhooks/tu_webhook_real",
     VERIFICATION_DELAY = 2, -- Segundos entre verificaciones
     MAX_TELEPORT_ATTEMPTS = 3,
