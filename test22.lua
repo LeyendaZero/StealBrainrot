@@ -9,8 +9,8 @@ local CONFIG = {
     DEBUG_MODE = true,
     ANTI_DETECTION = true,
     MAX_TARGETS = 3,
-    MIN_PLAYERS = 5,
-    MAX_PLAYERS = 30
+    MIN_PLAYERS = 0,
+    MAX_PLAYERS = 8
 }
 
 -- 🛠️ Servicios esenciales
