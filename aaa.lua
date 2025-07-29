@@ -1,8 +1,3 @@
-# Alt Hunter Pro (Versión Mejorada con UI)
-
-Aquí tienes el código completo con todas las mejoras implementadas, incluyendo una interfaz de usuario funcional:
-
-```lua
 -- alt_hunter_pro_advanced.lua
 local CONFIG = {
     GAME_ID = 109983668079237,
