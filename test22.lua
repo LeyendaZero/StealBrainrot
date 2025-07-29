@@ -223,10 +223,11 @@ local function createUI()
             HunterState.Active = not HunterState.Active
             StartButton.Text = HunterState.Active and "DETENER BÚSQUEDA" or "INICIAR BÚSQUEDA"
             StartButton.BackgroundColor3 = HunterState.Active and Color3.fromRGB(120, 60, 60) or Color3.fromRGB(60, 120, 60)
-            
+        
             if HunterState.Active then
-            
+            local huntingloop
                 coroutine.wrap(huntingLoop)()
+                        
             end
         end)
 
@@ -764,10 +765,7 @@ local function joinServer(serverInfo)
     return success
 end
 
---///////////////////////////////////////)
-        
-        
-        local function huntingLoop()
+huntingLoop = function()
     print("\n=== INICIANDO ALT HUNTER PRO ===")
     print(string.format("🔍 Buscando '%s' en radio de %d studs", CONFIG.TARGET_PATTERN, CONFIG.SCAN_RADIUS))
     
