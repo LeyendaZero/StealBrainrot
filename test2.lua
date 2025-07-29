@@ -809,6 +809,118 @@ local function huntingLoop()
 
         if CONFIG.DEBUG_MODE then
             print(string.format("🌐 %d servidores disponibles | %d analizados hasta ahora", 
-                  #servers
+                  #servers, UI.Status.ServersScanned))
+        end
+
+        for _, server in ipairs(servers) do
+            if not HunterState.Active then break end
+            while HunterState.Paused do task.wait(1) end
+            
+            if joinServer(server) then
+                -- Aplicar técnicas anti-detección
+                if CONFIG.ANTI_DETECTION then
+                    CONFIG.SERVER_HOP_DELAY = math.random(CONFIG.SERVER_HOP_DELAY-2, CONFIG.SERVER_HOP_DELAY+5)
+                    task.wait(math.random(1, 3))
+                end
+                
+                -- Escaneo profundo con medición de tiempo
+                local scanStart = os.clock()
+                HunterState.Targets = deepScan()
+                local scanTime = os.clock() - scanStart
+                
+                if #HunterState.Targets > 0 then
+                    UI.Status.TargetsFound = UI.Status.TargetsFound + #HunterState.Targets
+                    updateUI()
+                    sendHunterReport(HunterState.Targets, server.id)
+                    
+                    -- Decidir si continuar basado en la calidad del hallazgo
+                    if HunterState.Targets[1].distance < 100 then -- Objetivo muy cercano
+                        print("🎯 Objetivo principal encontrado! Finalizando búsqueda.")
+                        UI.Status.CurrentAction = "Objetivo principal encontrado!"
+                        updateUI()
+                        return
+                    else
+                        print("🎯 Objetivo encontrado pero continuando búsqueda...")
+                    end
+                elseif CONFIG.DEBUG_MODE then
+                    print(string.format("🔍 Escaneo completado en %.1fs - Sin objetivos", scanTime))
+                end
+                
+                -- Reporte periódico cada 10 servidores
+                if UI.Status.ServersScanned % 10 == 0 then
+                    sendHunterReport({}, server.id)
+                end
+            end
+
+            -- Espera adaptativa basada en resultados anteriores
+            local delay = CONFIG.SERVER_HOP_DELAY
+            if #HunterState.Targets > 0 then
+                delay = delay * 2 -- Esperar más si encontramos algo
+            end
+            task.wait(delay)
+        end
+
+        -- Reporte de estado cada ciclo completo
+        if CONFIG.DEBUG_MODE then
+            local elapsed = os.time() - UI.Status.startTime
+            print(string.format("🔁 Ciclo completado | %d servidores | %d objetivos | %02d:%02d ejecutándose", 
+                  UI.Status.ServersScanned, UI.Status.TargetsFound, elapsed/60, elapsed%60))
+        end
+        
+        UI.Status.CurrentAction = "Refrescando lista de servidores..."
+        updateUI()
+        task.wait(30) -- Espera antes de refrescar lista
+    end
+    
+    UI.Status.CurrentAction = "Búsqueda detenida"
+    updateUI()
+end
+
+-- 🎯 Inicialización
+local function initialize()
+    -- Esperar por el personaje del jugador
+    if not LocalPlayer.Character then
+        UI.Status.CurrentAction = "Esperando personaje..."
+        updateUI()
+        LocalPlayer.CharacterAdded:Wait()
+    end
+    
+    -- Crear la interfaz de usuario
+    createUI()
+    
+    -- Configurar tecla de acceso rápido (Opcional)
+    if syn and syn.is_beta then
+        syn.toast_notification("Alt Hunter Pro", "Presiona F5 para mostrar/ocultar la interfaz", 5)
+        
+        local UIVisible = true
+        game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+            if not processed and input.KeyCode == Enum.KeyCode.F5 then
+                UIVisible = not UIVisible
+                if UI.MainWindow then
+                    UI.MainWindow.Enabled = UIVisible
+                end
+            end
+        end)
+    end
+    
+    -- Iniciar estadísticas
+    UI.Status.startTime = os.time()
+    updateUI()
+    
+    -- Mensaje de inicio
+    print("\n=== ALT HUNTER PRO INICIALIZADO ===")
+    print("Configuración actual:")
+    for k, v in pairs(CONFIG) do
+        print(string.format("%s: %s", k, tostring(v)))
+    end
+    
+    if UI.MainWindow then
+        print("\nInterfaz de usuario disponible. Usa los controles para iniciar la búsqueda.")
+    end
+end
+
+-- Ejecutar inicialización
+coroutine.wrap(initialize)()
+
     
                 
