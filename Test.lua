@@ -2,7 +2,7 @@
 local CONFIG = {
     GAME_ID = 109983668079237,
     TARGET_PATTERN = "TralaleroTralala", -- Patrón que funcionó
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1398405036253646849/eduChknG-GHdidQyljf3ONIvGebPSs7EqP_68sS_FV_nZc3bohUWlBv2BY3yy3iIMYmA",
+    WEBHOOK_URL = "???",
     SCAN_RADIUS = 5000, -- Distancia aumentada como solicitaste
     SERVER_HOP_DELAY = 2, -- Espera entre servidores
     MAX_SERVERS = 25, -- Límite de servidores a analizar
