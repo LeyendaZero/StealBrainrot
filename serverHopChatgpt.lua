@@ -135,14 +135,15 @@ local function getUniverseIdFromPlaceId(placeId)
     return nil
 end
 
-local universeId = getUniverseIdFromPlaceId(CONFIG.GAME_ID) or tostring(CONFIG.GAME_ID)
+local universeId = 7709344486
+
 
 -- Obtener servidores activos
 local function getActiveServers()
     local servers = {}
     local url = string.format(
         "https://games.roblox.com/v1/games/%d/servers/Public?limit=%d",
-        GAME_ID,
+        CONFIG.GAME_ID,
         CONFIG.MAX_SERVERS
     )
     local success, response = pcall(function()
