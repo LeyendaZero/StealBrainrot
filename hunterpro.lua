@@ -142,7 +142,7 @@ local function getActiveServers()
     local servers = {}
     local url = string.format(
         "https://games.roblox.com/v1/games/%d/servers/Public?limit=%d",
-        universeId,
+        CONFIG.GAME_ID,
         CONFIG.MAX_SERVERS
     )
     local success, response = pcall(function()
