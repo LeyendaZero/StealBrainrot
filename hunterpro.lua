@@ -295,7 +295,9 @@ local function sendHunterReport(targets, jobId)
     end
 end
 
--- Teleport
+
+
+-- Función mejorada para unirse a servidor con estabilización
 local function joinServer(jobId)
     local attempts = 0
     local maxAttempts = 3
@@ -308,14 +310,18 @@ local function joinServer(jobId)
 
         if success then
             repeat task.wait(1) until game:IsLoaded()
+            
+            -- Espera inicial para que el servidor se estabilice
             local waitTime = 0
-            while not Workspace:FindFirstChildWhichIsA("Model") and waitTime < 15 do
+            while waitTime < 5 do  -- Espera inicial de 5 segundos
                 waitTime += 1
                 task.wait(1)
             end
 
+            -- Verificar que el personaje esté cargado
             if not LocalPlayer.Character then
                 LocalPlayer.CharacterAdded:Wait()
+                task.wait(2)  -- Espera adicional después de spawn
             end
 
             return true
@@ -330,9 +336,69 @@ local function joinServer(jobId)
     return false
 end
 
--- Loop principal
+-- Función para monitorear estabilidad del servidor
+local function checkServerStability()
+    -- Obtener lista inicial de jugadores
+    local initialPlayers = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        initialPlayers[player.Name] = true
+    end
+    
+    -- Esperar periodo de observación
+    task.wait(10)  -- 10 segundos de monitoreo
+    
+    -- Verificar si algún jugador se fue
+    local playersLeft = 0
+    for name, _ in pairs(initialPlayers) do
+        if not Players:FindFirstChild(name) then
+            playersLeft += 1
+            if CONFIG.DEBUG_MODE then
+                print("⚠️ Jugador se fue:", name)
+            end
+        end
+    end
+    
+    return playersLeft == 0  -- True si ningún jugador se fue
+end
+
+-- Función para escanear buscando específicamente al jugador con Tralalero Tralala
+local function scanForPlayerWithTarget()
+    -- Primero buscar jugadores que puedan tener el objetivo
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character or player.CharacterAdded:Wait()
+            
+            -- Buscar en el inventario del jugador
+            local backpack = player:FindFirstChild("Backpack")
+            if backpack then
+                for _, item in ipairs(backpack:GetChildren()) do
+                    if string.find(string.lower(item.Name), string.lower(CONFIG.TARGET_PATTERN)) then
+                        return true, player.Name
+                    end
+                end
+            end
+            
+            -- Buscar en el modelo del personaje
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if string.find(string.lower(part.Name), string.lower(CONFIG.TARGET_PATTERN)) then
+                        return true, player.Name
+                    end
+                end
+            end
+        end
+    end
+    
+    return false, nil
+end
+
+
+
+
+
+-- Modificación del huntingLoop
 local function huntingLoop()
-    print("\n=== INICIANDO MODO HUNTER ===")
+    print("\n=== INICIANDO MODO HUNTER MEJORADO ===")
     print(string.format("🔍 Buscando '%s' o 💰 %d/s en radio de %d studs", CONFIG.TARGET_PATTERN, CONFIG.TARGET_EARNINGS, CONFIG.SCAN_RADIUS))
 
     while _G.running do
@@ -348,25 +414,50 @@ local function huntingLoop()
             for _, serverId in ipairs(servers) do
                 if not _G.running then break end
           
-               
                 if CONFIG.DEBUG_MODE then
                     print("🛫 Intentando unirse a:", serverId)
                 end
 
                 if joinServer(serverId) then
-                    local targets = deepScan()
-                    sendHunterReport(targets, serverId)
-                    incrementServerCount()
-
-                    if #targets > 0 then
-                        print("🎯 Objetivo encontrado! Finalizando búsqueda.")
-                        onEntityFound()
-                        _G.running = false
-                        
-                        break
-                        
-                        
+                    -- Verificar estabilidad del servidor
+                    local isStable = checkServerStability()
+                    
+                    -- Verificar específicamente al jugador con el objetivo
+                    local targetFound, playerName = scanForPlayerWithTarget()
+                    
+                    if not isStable then
+                        print("⚠️ Servidor inestable - jugadores salieron. Saltando...")
+                        incrementServerCount()
+                        task.wait(CONFIG.SERVER_HOP_DELAY)
+                        continue
                     end
+                    
+                    if targetFound then
+                        print(string.format("🎯 Jugador con objetivo detectado: %s", playerName))
+                        -- Hacer scan profundo solo si el jugador con el objetivo sigue presente
+                        local targets = deepScan()
+                        sendHunterReport(targets, serverId)
+                        
+                        if #targets > 0 then
+                            print("🎯 Objetivo encontrado! Finalizando búsqueda.")
+                            onEntityFound()
+                            _G.running = false
+                            break
+                        end
+                    else
+                        -- Scan normal si no se detectó jugador con el objetivo
+                        local targets = deepScan()
+                        sendHunterReport(targets, serverId)
+                        
+                        if #targets > 0 then
+                            print("🎯 Objetivo encontrado! Finalizando búsqueda.")
+                            onEntityFound()
+                            _G.running = false
+                            break
+                        end
+                    end
+                    
+                    incrementServerCount()
                 end
 
                 task.wait(CONFIG.SERVER_HOP_DELAY)
@@ -383,8 +474,4 @@ local function huntingLoop()
     end
 end
 
-if not LocalPlayer.Character then
-    LocalPlayer.CharacterAdded:Wait()
-end
-
-huntingLoop()
+-- Teleport
