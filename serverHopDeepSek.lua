@@ -211,7 +211,7 @@ local function createMobileUI()
             StartButton.Text = HunterState.Active and "DETENER" or "INICIAR"
             StartButton.BackgroundColor3 = HunterState.Active and Color3.fromRGB(120, 60, 60) or Color3.fromRGB(60, 120, 60)
             if HunterState.Active then
-            local huntingLoop()
+            local huntingLoop
             
                 coroutine.wrap(huntingLoop)()
             end
@@ -650,7 +650,7 @@ local function joinServer(jobId)
 end
 
 -- Loop principal
-huntingLoop = function
+huntingLoop = function()
     print("\n=== INICIANDO MODO HUNTER ===")
     print(string.format("🔍 Buscando '%s' o 💰 %d/s en radio de %d studs", CONFIG.TARGET_PATTERN, CONFIG.TARGET_EARNINGS, CONFIG.SCAN_RADIUS))
     
