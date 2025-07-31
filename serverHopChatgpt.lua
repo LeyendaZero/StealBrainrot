@@ -117,23 +117,6 @@ end
 
 local running = true
 
--- Obtener universeId
-local function getUniverseIdFromPlaceId(placeId)
-    local url = string.format("https://games.roblox.com/v1/games/multiget-place-details?placeIds=[%d]", placeId)
-    local success, response = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if success then
-        local data = HttpService:JSONDecode(response)
-        if data and data[1] and data[1].universeId then
-            return tostring(data[1].universeId)
-        end
-    end
-    if CONFIG.DEBUG_MODE then
-        warn("No se pudo obtener universeId para el placeId "..tostring(placeId))
-    end
-    return nil
-end
 
 local universeId = 7709344486
 
