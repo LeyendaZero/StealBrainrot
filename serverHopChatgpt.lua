@@ -141,8 +141,8 @@ local universeId = getUniverseIdFromPlaceId(CONFIG.GAME_ID) or tostring(CONFIG.G
 local function getActiveServers()
     local servers = {}
     local url = string.format(
-        "https://games.roblox.com/v1/games/%s/servers/Public?limit=%d",
-        universeId,
+        "https://games.roblox.com/v1/games/%d/servers/Public?limit=%d",
+        GAME_ID,
         CONFIG.MAX_SERVERS
     )
     local success, response = pcall(function()
