@@ -135,7 +135,7 @@ local function getUniverseIdFromPlaceId(placeId)
     return nil
 end
 
-local universeId = "7709344486"
+local universeId = 7709344486
 
 -- Obtener servidores activos
 local function getActiveServers()
