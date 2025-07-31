@@ -1,8 +1,4 @@
-# VersiÃ³n Mejorada del Script Hunter Pro
 
-AquÃ­ estÃ¡ la versiÃ³n mejorada de tu script con todas las optimizaciones integradas:
-
-```lua
 -- ConfiguraciÃ³n mejorada con sistema de persistencia
 local ConfigManager = {
     Defaults = {
