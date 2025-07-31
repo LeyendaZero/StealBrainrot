@@ -1,6 +1,6 @@
 local CONFIG = {
     GAME_ID = 109983668079237,
-    TARGET_PATTERN = "Tralalero Tralala",
+    TARGET_PATTERN = "Chimpanzini Spiderini",
     TARGET_EARNINGS = 999999999,
     WEBHOOK_URL = "tu_webhook_aqui",
     SCAN_RADIUS = 5000,
