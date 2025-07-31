@@ -135,7 +135,7 @@ local function getUniverseIdFromPlaceId(placeId)
     return nil
 end
 
-local universeId = getUniverseIdFromPlaceId(CONFIG.GAME_ID) or tostring(CONFIG.GAME_ID)
+local universeId = "7709344486"
 
 -- Obtener servidores activos
 local function getActiveServers()
