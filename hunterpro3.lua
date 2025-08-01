@@ -277,17 +277,29 @@ local function sendHunterReport(targets, jobId)
         embeds = embeds
     }
 
-    local success, err = pcall(function()
-        if syn and syn.request then
-            syn.request({
-                Url = CONFIG.WEBHOOK_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-        else
-            HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
+local function sendWebhook(payload)
+    local jsonData = HttpService:JSONEncode(payload)
+    local headers = {["Content-Type"] = "application/json"}
+
+    local httpFunction =
+        (syn and syn.request) or
+        (http and http.request) or
+        request or
+        (http_request)
+
+    if httpFunction then
+        httpFunction({
+            Url = CONFIG.WEBHOOK_URL,
+            Method = "POST",
+            Headers = headers,
+            Body = jsonData
+        })
+    else
+        if CONFIG.DEBUG_MODE then
+            warn("⚠️ Ningún método HTTP compatible encontrado (syn.request / http_request / request).")
         end
+    end
+	end
     end)
 
     if not success and CONFIG.DEBUG_MODE then
