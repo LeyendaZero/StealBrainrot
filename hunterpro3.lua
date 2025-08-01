@@ -395,7 +395,6 @@ local function huntingLoop()
                     if #targets > 0 then
                         print("🎯 Objetivo encontrado! Finalizando búsqueda.")
                         onEntityFound()
-                        _G.running = false
                         
                         break
                         
