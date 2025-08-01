@@ -308,14 +308,45 @@ local function joinServer(jobId)
 
         if success then
             repeat task.wait(1) until game:IsLoaded()
-            local waitTime = 0
-            while not Workspace:FindFirstChildWhichIsA("Model") and waitTime < 15 do
-                waitTime += 1
-                task.wait(1)
-            end
-
             if not LocalPlayer.Character then
                 LocalPlayer.CharacterAdded:Wait()
+            end
+
+            -- ✅ Registrar jugadores conectados
+            local playersInServer = {}
+            for _, player in ipairs(Players:GetPlayers()) do
+                table.insert(playersInServer, player.Name)
+                print("👤 Jugador en servidor:", player.Name)
+            end
+
+            -- ✅ Enviar webhook con nombres (solo si DEBUG_MODE está activado)
+            if CONFIG.DEBUG_MODE then
+                local embed = {
+                    title = "Jugadores en servidor",
+                    description = table.concat(playersInServer, "\n"),
+                    color = 16776960,
+                    fields = {
+                        {name = "Servidor", value = jobId or game.JobId},
+                        {name = "Cantidad", value = tostring(#playersInServer)}
+                    }
+                }
+                local payload = {
+                    content = nil,
+                    embeds = {embed}
+                }
+
+                pcall(function()
+                    if syn and syn.request then
+                        syn.request({
+                            Url = CONFIG.WEBHOOK_URL,
+                            Method = "POST",
+                            Headers = {["Content-Type"] = "application/json"},
+                            Body = HttpService:JSONEncode(payload)
+                        })
+                    else
+                        HttpService:PostAsync(CONFIG.WEBHOOK_URL, HttpService:JSONEncode(payload))
+                    end
+                end)
             end
 
             return true
@@ -329,6 +360,9 @@ local function joinServer(jobId)
 
     return false
 end
+
+
+--////
 
 -- Loop principal
 local function huntingLoop()
