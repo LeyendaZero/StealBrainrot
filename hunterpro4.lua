@@ -332,32 +332,25 @@ local function joinServer(jobId)
 
             -- ✅ Verificar presencia de "Tralalero Tralala" al menos 5 segundos
             local function waitForStableTralalero()
-                local function hasTralalero()
-                    for _, player in ipairs(Players:GetPlayers()) do
-                        if string.lower(player.Name):find("tralalero") then
-                            return player
-                        end
-                    end
-                    return nil
-                end
+    local lastFound = nil
 
-                local playerFound = hasTralalero()
-                if playerFound then
-                    print("🕵️ Detectado Tralalero Tralala: " .. playerFound.Name)
-                    -- Esperamos 5 segundos monitoreando si sigue en el servidor
-                    for i = 1, 5 do
-                        task.wait(1)
-                        if not table.find(Players:GetPlayers(), playerFound) then
-                            print("❌ Tralalero se salió antes de los 5 segundos. Ignorando servidor.")
-                            return false
-                        end
-                    end
-                    print("✅ Tralalero confirmado estable por 5s: " .. playerFound.Name)
-                    return true
-                end
-                return false
+    for i = 1, 5 do
+        local object = Workspace:FindFirstChild(CONFIG.TARGET_PATTERN, true)
+        if object then
+            if not lastFound then
+                print("🕵️ Tralalero Tralala detectado por primera vez.")
             end
+            lastFound = object
+        else
+            print("❌ Tralalero Tralala desapareció durante la espera.")
+            return false
+        end
+        task.wait(1)
+    end
 
+    print("✅ Tralalero Tralala confirmado tras 5 segundos.")
+    return true
+end
             if waitForStableTralalero() then
                 onEntityFound()
                 sendHunterReport({}, jobId)
