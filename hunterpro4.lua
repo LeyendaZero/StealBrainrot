@@ -311,8 +311,9 @@ local function sendHunterReport(targets, jobId)
 
     sendWebhook(payload)
 end
---)/(((
--- Teleport
+
+
+
 local function joinServer(jobId)
     local attempts = 0
     local maxAttempts = 3
@@ -413,7 +414,6 @@ local function joinServer(jobId)
 
     return false
 end
---////
 
 -- Loop principal
 local function huntingLoop()
