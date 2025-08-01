@@ -1,126 +1,78 @@
-local CONFIG = {
-    GAME_ID = 109983668079237,
-    TARGET_PATTERN = "Tralalero Tralala",
-    TARGET_EARNINGS = 999999999, -- 💰 Lo que quieres ganar por segundo
-    WEBHOOK_URL = "tu_webhook_aqui",
-    SCAN_RADIUS = 5000,
-    SERVER_HOP_DELAY = 2,
-    MAX_SERVERS = 25,
-    DEBUG_MODE = true
-}
+-- INICIO DEL SCRIPT MODIFICADO
 
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
+local CONFIG = { GAME_ID = 109983668079237, TARGET_PATTERN = "Tralalero Tralala", TARGET_EARNINGS = 999999999, WEBHOOK_URL = "tu_webhook_aqui", SCAN_RADIUS = 5000, SERVER_HOP_DELAY = 2, MAX_SERVERS = 25, DEBUG_MODE = true }
 
--- Configuración inicial
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Players = game:GetService("Players") local HttpService = game:GetService("HttpService") local TeleportService = game:GetService("TeleportService") local Workspace = game:GetService("Workspace") local LocalPlayer = Players.LocalPlayer local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Variables de control
-local serversVisited = 0
-_G.running = true
+local serversVisited = 0 local foundServers = {} _G.running = true
 
--- GUI principal
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FloatingHunterUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = PlayerGui
+local ScreenGui = Instance.new("ScreenGui") ScreenGui.Name = "FloatingHunterUI" ScreenGui.ResetOnSpawn = false ScreenGui.IgnoreGuiInset = true ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling ScreenGui.Parent = PlayerGui
 
--- Marco flotante
-local DragFrame = Instance.new("Frame")
-DragFrame.Size = UDim2.new(0, 200, 0, 60)
-DragFrame.Position = UDim2.new(0.65, 0, 0.05, 0)
-DragFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-DragFrame.BackgroundTransparency = 0.2
-DragFrame.BorderSizePixel = 0
-DragFrame.Active = true
-DragFrame.Draggable = true
-DragFrame.Parent = ScreenGui
+local DragFrame = Instance.new("Frame") DragFrame.Size = UDim2.new(0, 220, 0, 280) DragFrame.Position = UDim2.new(0.7, 0, 0.1, 0) DragFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) DragFrame.BackgroundTransparency = 0.2 DragFrame.BorderSizePixel = 0 DragFrame.Active = true DragFrame.Draggable = true DragFrame.Parent = ScreenGui
 
--- Esquinas redondeadas
-local UICorner = Instance.new("UICorner", DragFrame)
-UICorner.CornerRadius = UDim.new(0, 8)
+local UICorner = Instance.new("UICorner", DragFrame) UICorner.CornerRadius = UDim.new(0, 8)
 
--- Texto principal
-local TextLabel = Instance.new("TextLabel")
-TextLabel.Size = UDim2.new(1, 0, 0.5, 0)
-TextLabel.Position = UDim2.new(0, 0, 0, 0)
-TextLabel.BackgroundTransparency = 1
-TextLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-TextLabel.Font = Enum.Font.SourceSansBold
-TextLabel.TextScaled = true
-TextLabel.Text = "Servidores: 0"
-TextLabel.Parent = DragFrame
+local TitleLabel = Instance.new("TextLabel") TitleLabel.Size = UDim2.new(1, 0, 0, 30) TitleLabel.Position = UDim2.new(0, 0, 0, 0) TitleLabel.BackgroundTransparency = 1 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255) TitleLabel.Font = Enum.Font.SourceSansBold TitleLabel.TextScaled = true TitleLabel.Text = "Servidores con Objetivo" TitleLabel.Parent = DragFrame
 
--- Botón de detener
-local StopButton = Instance.new("TextButton")
-StopButton.Size = UDim2.new(1, 0, 0.5, 0)
-StopButton.Position = UDim2.new(0, 0, 0.5, 0)
-StopButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-StopButton.Text = "DETENER"
-StopButton.TextScaled = true
-StopButton.TextColor3 = Color3.new(1, 1, 1)
-StopButton.Font = Enum.Font.SourceSansBold
-StopButton.Parent = DragFrame
+local StopButton = Instance.new("TextButton") StopButton.Size = UDim2.new(1, 0, 0, 30) StopButton.Position = UDim2.new(0, 0, 1, -30) StopButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60) StopButton.Text = "DETENER" StopButton.TextScaled = true StopButton.TextColor3 = Color3.new(1, 1, 1) StopButton.Font = Enum.Font.SourceSansBold StopButton.Parent = DragFrame
 
-local ButtonCorner = Instance.new("UICorner", StopButton)
-ButtonCorner.CornerRadius = UDim.new(0, 6)
+local ButtonCorner = Instance.new("UICorner", StopButton) ButtonCorner.CornerRadius = UDim.new(0, 6)
 
--- Sonido de campanita
-local BellSound = Instance.new("Sound")
-BellSound.SoundId = "rbxassetid://911342077" -- ID de campanita
-BellSound.Volume = 1
-BellSound.Parent = DragFrame
+local ScrollFrame = Instance.new("ScrollingFrame") ScrollFrame.Size = UDim2.new(1, 0, 1, -60) ScrollFrame.Position = UDim2.new(0, 0, 0, 30) ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0) ScrollFrame.ScrollBarThickness = 6 ScrollFrame.BackgroundTransparency = 1 ScrollFrame.Parent = DragFrame
 
--- Función para actualizar UI
-local function updateUI(message, color)
-	TextLabel.Text = message
-	TextLabel.TextColor3 = color or Color3.fromRGB(0, 255, 0)
-end
+local UIListLayout = Instance.new("UIListLayout") UIListLayout.Parent = ScrollFrame UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder UIListLayout.Padding = UDim.new(0, 4)
 
--- Parpadeo visual cuando encuentra entidad
-local function flashMessage()
-	task.spawn(function()
-		for i = 1, 6 do
-			TextLabel.Visible = not TextLabel.Visible
-			task.wait(0.25)
-		end
-		TextLabel.Visible = true
-	end)
-end
+StopButton.MouseButton1Click:Connect(function() _G.running = false StopButton.Text = "BUSQUEDA DETENIDA" StopButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150) end)
 
--- Función pública que puedes llamar desde tu script cuando encuentra entidad
-function onEntityFound()
-	updateUI("¡Entidad en el servidor!", Color3.fromRGB(255, 0, 0))
-	BellSound:Play()
-	flashMessage()
-end
+local function addServerToList(target, jobId) for _, entry in ipairs(foundServers) do if entry.jobId == jobId then return -- ya agregado end end
 
--- Evento del botón para detener script
-StopButton.MouseButton1Click:Connect(function()
-	_G.running = false
-	updateUI("🔴 Búsqueda detenida", Color3.fromRGB(255, 60, 60))
+table.insert(foundServers, {target = target, jobId = jobId})
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(1, -8, 0, 50)
+Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScrollFrame
+
+local UIC = Instance.new("UICorner", Frame)
+UIC.CornerRadius = UDim.new(0, 6)
+
+local Text = Instance.new("TextLabel")
+Text.Size = UDim2.new(0.7, 0, 1, 0)
+Text.Position = UDim2.new(0, 6, 0, 0)
+Text.BackgroundTransparency = 1
+Text.Text = string.format("%s | 💰 %s", target.name, target.earnings or "?")
+Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+Text.TextScaled = true
+Text.Font = Enum.Font.SourceSans
+Text.Parent = Frame
+
+local JoinBtn = Instance.new("TextButton")
+JoinBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
+JoinBtn.Position = UDim2.new(0.72, 0, 0.1, 0)
+JoinBtn.Text = "JOIN"
+JoinBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+JoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+JoinBtn.TextScaled = true
+JoinBtn.Font = Enum.Font.SourceSansBold
+JoinBtn.Parent = Frame
+
+local UICBtn = Instance.new("UICorner", JoinBtn)
+UICBtn.CornerRadius = UDim.new(0, 5)
+
+JoinBtn.MouseButton1Click:Connect(function()
+    TeleportService:TeleportToPlaceInstance(CONFIG.GAME_ID, jobId, LocalPlayer)
 end)
 
--- Función para aumentar contador (llámala después de cada servidor visitado)
-function incrementServerCount()
-	serversVisited += 1
-	updateUI("Servidores: " .. serversVisited)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+
 end
 
+-- Dentro de huntingLoop, reemplaza donde encuentras objetivos por esto: -- Ejemplo: -- if #targets > 0 then --   for _, t in ipairs(targets) do --     addServerToList(t, serverId) --   end --   print("🎯 Objetivo encontrado!") --   onEntityFound() -- end
 
-local running = true
+-- FIN DEL SCRIPT MODIFICADO
 
-
-local universeId = 7709344486
-
-
+		
 -- Obtener servidores activos
 local function getActiveServers()
     local servers = {}
