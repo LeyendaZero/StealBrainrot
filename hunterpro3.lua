@@ -240,6 +240,38 @@ local function deepScan()
 end
 
 -- Reporte
+-- Función para enviar webhooks de forma compatible
+local function sendWebhook(payload)
+    local jsonData = HttpService:JSONEncode(payload)
+    local headers = {["Content-Type"] = "application/json"}
+
+    local httpFunction =
+        (syn and syn.request) or
+        (http and http.request) or
+        request or
+        http_request
+
+    if httpFunction then
+        local success, err = pcall(function()
+            httpFunction({
+                Url = CONFIG.WEBHOOK_URL,
+                Method = "POST",
+                Headers = headers,
+                Body = jsonData
+            })
+        end)
+
+        if not success and CONFIG.DEBUG_MODE then
+            warn("⚠️ Error al enviar webhook:", err)
+        end
+    else
+        if CONFIG.DEBUG_MODE then
+            warn("⚠️ Ningún método HTTP compatible encontrado (syn.request / http_request / request).")
+        end
+    end
+end
+
+-- Función que arma y envía el reporte de objetivos
 local function sendHunterReport(targets, jobId)
     local embeds = {}
     local content = #targets > 0 and "@everyone 🎯 OBJETIVO ENCONTRADO" or nil
@@ -277,36 +309,9 @@ local function sendHunterReport(targets, jobId)
         embeds = embeds
     }
 
-local function sendWebhook(payload)
-    local jsonData = HttpService:JSONEncode(payload)
-    local headers = {["Content-Type"] = "application/json"}
-
-    local httpFunction =
-        (syn and syn.request) or
-        (http and http.request) or
-        request or
-        (http_request)
-
-    if httpFunction then
-        httpFunction({
-            Url = CONFIG.WEBHOOK_URL,
-            Method = "POST",
-            Headers = headers,
-            Body = jsonData
-        })
-    else
-        if CONFIG.DEBUG_MODE then
-            warn("⚠️ Ningún método HTTP compatible encontrado (syn.request / http_request / request).")
-        end
-    end
-	end
-    end)
-
-    if not success and CONFIG.DEBUG_MODE then
-        warn("⚠️ Error al enviar reporte:", err)
-    end
+    sendWebhook(payload)
 end
-
+--)/(((
 -- Teleport
 local function joinServer(jobId)
     local attempts = 0
